@@ -7,6 +7,8 @@
     <link rel="icon" type="image/png" href="cover.png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -50,6 +52,7 @@
             --gray-800: #f3f4f6;
             --gray-900: #f9fafb;
             background: #0f1419;
+            color: var(--gray-800);
         }
 
         /* Layout */
@@ -66,8 +69,13 @@
             position: fixed;
             height: 100vh;
             overflow-y: auto;
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, background-color 0.3s ease;
             z-index: 1000;
+        }
+
+        body.dark-mode .sidebar {
+            background: #1f2937;
+            border-right-color: #374151;
         }
 
         .sidebar.collapsed {
@@ -148,6 +156,12 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            transition: background-color 0.3s ease;
+        }
+
+        body.dark-mode .header {
+            background: #1f2937;
+            border-bottom-color: #374151;
         }
 
         .header-left {
@@ -188,6 +202,12 @@
             padding: 24px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             margin-bottom: 24px;
+            transition: background-color 0.3s ease;
+        }
+
+        body.dark-mode .card {
+            background: #1f2937;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         }
 
         .card-header {
@@ -217,6 +237,12 @@
             padding: 24px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             border-left: 4px solid;
+            transition: background-color 0.3s ease;
+        }
+
+        body.dark-mode .status-card {
+            background: #1f2937;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         }
 
         .status-card.primary { border-left-color: var(--primary); }
@@ -391,6 +417,15 @@
             background: var(--gray-50);
         }
 
+        body.dark-mode .table th {
+            background: #111827;
+            border-bottom-color: #374151;
+        }
+
+        body.dark-mode .table td {
+            border-bottom-color: #374151;
+        }
+
         /* Form Elements */
         .form-group {
             margin-bottom: 20px;
@@ -518,6 +553,11 @@
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
+            transition: background-color 0.3s ease;
+        }
+
+        body.dark-mode .modal-content {
+            background: #1f2937;
         }
 
         .modal-header {
@@ -2525,8 +2565,165 @@
         function createBusinessCase() { showToast('Business-Case-Feature in Entwicklung...'); }
 
         // Stufe 4
-        function addBuildBuyDecision() { showToast('Build-vs-Buy-Feature in Entwicklung...'); }
-        function addVendorScorecard() { showToast('Vendor-Scorecard-Feature in Entwicklung...'); }
+        function addBuildBuyDecision() {
+            const projectName = prompt('Projekt-Name:');
+            if (!projectName) return;
+
+            if (!AppData.buildBuyDecisions) AppData.buildBuyDecisions = [];
+            AppData.buildBuyDecisions.push({
+                id: Date.now(),
+                name: projectName,
+                strategicImportance: 3,
+                availableSolutions: 3,
+                internalCompetence: 3,
+                timeToValue: 3,
+                longTermCost: 3
+            });
+            renderBuildBuyDecisions();
+            saveData();
+        }
+
+        function renderBuildBuyDecisions() {
+            const container = document.getElementById('buildBuyList');
+            if (!AppData.buildBuyDecisions || AppData.buildBuyDecisions.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>Keine Build-vs-Buy-Entscheidungen erfasst.</p></div>';
+                return;
+            }
+
+            container.innerHTML = AppData.buildBuyDecisions.map(decision => {
+                const total = decision.strategicImportance + decision.availableSolutions + decision.internalCompetence + decision.timeToValue + decision.longTermCost;
+                const recommendation = total <= 12 ? 'BUY' : total <= 18 ? 'PARTNER' : 'BUILD';
+                const recommendationColor = recommendation === 'BUILD' ? 'success' : recommendation === 'PARTNER' ? 'warning' : 'info';
+
+                return `
+                    <div class="card mb-16">
+                        <h4>${decision.name}</h4>
+                        <div class="form-group">
+                            <label class="form-label">Strategische Bedeutung (1-5): ${decision.strategicImportance}</label>
+                            <input type="range" min="1" max="5" value="${decision.strategicImportance}" class="form-input" onchange="updateBuildBuy(${decision.id}, 'strategicImportance', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Verfügbarkeit fertiger Lösungen (1-5): ${decision.availableSolutions}</label>
+                            <input type="range" min="1" max="5" value="${decision.availableSolutions}" class="form-input" onchange="updateBuildBuy(${decision.id}, 'availableSolutions', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Interne Kompetenz (1-5): ${decision.internalCompetence}</label>
+                            <input type="range" min="1" max="5" value="${decision.internalCompetence}" class="form-input" onchange="updateBuildBuy(${decision.id}, 'internalCompetence', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Zeit bis zum Wert (1-5): ${decision.timeToValue}</label>
+                            <input type="range" min="1" max="5" value="${decision.timeToValue}" class="form-input" onchange="updateBuildBuy(${decision.id}, 'timeToValue', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Langfristige Kosten (1-5): ${decision.longTermCost}</label>
+                            <input type="range" min="1" max="5" value="${decision.longTermCost}" class="form-input" onchange="updateBuildBuy(${decision.id}, 'longTermCost', this.value)">
+                        </div>
+                        <div style="background: var(--gray-50); padding: 16px; border-radius: 8px; margin-top: 16px;">
+                            <h4>Empfehlung: <span class="badge badge-${recommendationColor}">${recommendation}</span></h4>
+                            <p style="margin-top: 8px; font-size: 0.875rem; color: var(--gray-600);">Score: ${total}/25</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateBuildBuy(id, field, value) {
+            const decision = AppData.buildBuyDecisions.find(d => d.id === id);
+            if (decision) {
+                decision[field] = parseInt(value);
+                renderBuildBuyDecisions();
+                saveData();
+            }
+        }
+
+        function addVendorScorecard() {
+            const vendorName = prompt('Vendor-Name:');
+            if (!vendorName) return;
+
+            if (!AppData.vendorScorecards) AppData.vendorScorecards = [];
+            AppData.vendorScorecards.push({
+                id: Date.now(),
+                name: vendorName,
+                techFit: 0,
+                stability: 0,
+                portability: 0,
+                support: 0,
+                costTransparency: 0,
+                compliance: 0
+            });
+            renderVendorScorecards();
+            saveData();
+        }
+
+        function renderVendorScorecards() {
+            const container = document.getElementById('vendorScorecardList');
+            if (!AppData.vendorScorecards || AppData.vendorScorecards.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>Keine Vendor-Scorecards erfasst.</p></div>';
+                return;
+            }
+
+            container.innerHTML = AppData.vendorScorecards.map(vendor => {
+                const total = vendor.techFit + vendor.stability + vendor.portability + vendor.support + vendor.costTransparency + vendor.compliance;
+                const color = total >= 24 ? 'success' : total >= 18 ? 'warning' : 'danger';
+
+                return `
+                    <div class="card mb-16">
+                        <h4>${vendor.name} - ${total}/30 Punkte</h4>
+                        <div class="form-group">
+                            <label class="form-label">Technology Fit (0-8): ${vendor.techFit}</label>
+                            <input type="range" min="0" max="8" value="${vendor.techFit}" class="form-input" onchange="updateVendorScore(${vendor.id}, 'techFit', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Vendor Stability (0-5): ${vendor.stability}</label>
+                            <input type="range" min="0" max="5" value="${vendor.stability}" class="form-input" onchange="updateVendorScore(${vendor.id}, 'stability', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Portability (0-5): ${vendor.portability}</label>
+                            <input type="range" min="0" max="5" value="${vendor.portability}" class="form-input" onchange="updateVendorScore(${vendor.id}, 'portability', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Support Quality (0-4): ${vendor.support}</label>
+                            <input type="range" min="0" max="4" value="${vendor.support}" class="form-input" onchange="updateVendorScore(${vendor.id}, 'support', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cost Transparency (0-4): ${vendor.costTransparency}</label>
+                            <input type="range" min="0" max="4" value="${vendor.costTransparency}" class="form-input" onchange="updateVendorScore(${vendor.id}, 'costTransparency', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Compliance & Security (0-4): ${vendor.compliance}</label>
+                            <input type="range" min="0" max="4" value="${vendor.compliance}" class="form-input" onchange="updateVendorScore(${vendor.id}, 'compliance', this.value)">
+                        </div>
+                        <div style="background: var(--gray-50); padding: 16px; border-radius: 8px; margin-top: 16px;">
+                            <span class="badge badge-${color}" style="font-size: 1.25rem; padding: 8px 16px;">
+                                ${total >= 24 ? '✓ EMPFOHLEN' : total >= 18 ? '⚠ BEDINGT' : '✗ NICHT EMPFOHLEN'}
+                            </span>
+                        </div>
+                        <button class="btn btn-sm btn-danger mt-16" onclick="deleteVendorScorecard(${vendor.id})">🗑️ Löschen</button>
+                    </div>
+                `;
+            }).join('');
+
+            if (AppData.vendorScorecards.length > 1) {
+                document.getElementById('vendorComparison').style.display = 'block';
+            }
+        }
+
+        function updateVendorScore(id, field, value) {
+            const vendor = AppData.vendorScorecards.find(v => v.id === id);
+            if (vendor) {
+                vendor[field] = parseInt(value);
+                renderVendorScorecards();
+                saveData();
+            }
+        }
+
+        function deleteVendorScorecard(id) {
+            if (confirm('Vendor-Scorecard löschen?')) {
+                AppData.vendorScorecards = AppData.vendorScorecards.filter(v => v.id !== id);
+                renderVendorScorecards();
+                saveData();
+            }
+        }
 
         function checkRedFlags() {
             const redFlags = [
@@ -2568,8 +2765,141 @@
             showToast('Skill-Gaps berechnet!');
         }
 
-        function addTeamMember() { showToast('Team-Member-Feature in Entwicklung...'); }
-        function addStakeholder() { showToast('Stakeholder-Feature in Entwicklung...'); }
+        function addTeamMember() {
+            const name = prompt('Name des Team-Mitglieds:');
+            if (!name) return;
+
+            if (!AppData.teamMembers) AppData.teamMembers = [];
+            AppData.teamMembers.push({
+                id: Date.now(),
+                name: name,
+                role: '',
+                skills: '',
+                availability: 100
+            });
+            renderTeamMembers();
+            saveData();
+        }
+
+        function renderTeamMembers() {
+            const container = document.getElementById('teamMembersList');
+            if (!AppData.teamMembers || AppData.teamMembers.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>Keine Team-Mitglieder erfasst.</p></div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Rolle</th>
+                            <th>Skills</th>
+                            <th>Verfügbarkeit (%)</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${AppData.teamMembers.map(member => `
+                            <tr>
+                                <td><input type="text" class="form-input" value="${member.name}" onchange="updateTeamMember(${member.id}, 'name', this.value)"></td>
+                                <td><input type="text" class="form-input" value="${member.role}" onchange="updateTeamMember(${member.id}, 'role', this.value)" placeholder="z.B. Data Scientist"></td>
+                                <td><input type="text" class="form-input" value="${member.skills}" onchange="updateTeamMember(${member.id}, 'skills', this.value)" placeholder="Python, ML, etc."></td>
+                                <td><input type="number" min="0" max="100" class="form-input" value="${member.availability}" onchange="updateTeamMember(${member.id}, 'availability', this.value)"></td>
+                                <td><button class="btn btn-sm btn-danger" onclick="deleteTeamMember(${member.id})">🗑️</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function updateTeamMember(id, field, value) {
+            const member = AppData.teamMembers.find(m => m.id === id);
+            if (member) {
+                member[field] = field === 'availability' ? parseInt(value) : value;
+                saveData();
+            }
+        }
+
+        function deleteTeamMember(id) {
+            if (confirm('Team-Mitglied löschen?')) {
+                AppData.teamMembers = AppData.teamMembers.filter(m => m.id !== id);
+                renderTeamMembers();
+                saveData();
+            }
+        }
+
+        function addStakeholder() {
+            const name = prompt('Name des Stakeholders:');
+            if (!name) return;
+
+            if (!AppData.stakeholders) AppData.stakeholders = [];
+            AppData.stakeholders.push({
+                id: Date.now(),
+                name: name,
+                department: '',
+                influence: 3,
+                interest: 3,
+                concerns: '',
+                needs: ''
+            });
+            renderStakeholders();
+            saveData();
+        }
+
+        function renderStakeholders() {
+            const container = document.getElementById('stakeholderBubbles');
+            if (!AppData.stakeholders || AppData.stakeholders.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>Keine Stakeholder erfasst. Fügen Sie Stakeholder hinzu.</p></div>';
+                return;
+            }
+
+            // Simple list view instead of complex matrix visualization
+            const list = document.getElementById('stakeholderMatrix');
+            list.innerHTML = `
+                <div style="padding: 20px;">
+                    ${AppData.stakeholders.map(sh => {
+                        const strategy = sh.influence >= 3 && sh.interest >= 3 ? 'Manage closely' :
+                                       sh.influence >= 3 && sh.interest < 3 ? 'Keep satisfied' :
+                                       sh.influence < 3 && sh.interest >= 3 ? 'Keep informed' : 'Monitor';
+                        return `
+                            <div class="card mb-16">
+                                <h4>${sh.name}</h4>
+                                <p><strong>Abteilung:</strong> ${sh.department || '-'}</p>
+                                <div class="form-group">
+                                    <label>Einfluss (1-5): ${sh.influence}</label>
+                                    <input type="range" min="1" max="5" value="${sh.influence}" class="form-input" onchange="updateStakeholder(${sh.id}, 'influence', this.value)">
+                                </div>
+                                <div class="form-group">
+                                    <label>Interesse (1-5): ${sh.interest}</label>
+                                    <input type="range" min="1" max="5" value="${sh.interest}" class="form-input" onchange="updateStakeholder(${sh.id}, 'interest', this.value)">
+                                </div>
+                                <p><strong>Strategie:</strong> <span class="badge badge-primary">${strategy}</span></p>
+                                <button class="btn btn-sm btn-danger" onclick="deleteStakeholder(${sh.id})">🗑️ Löschen</button>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function updateStakeholder(id, field, value) {
+            const sh = AppData.stakeholders.find(s => s.id === id);
+            if (sh) {
+                sh[field] = field === 'influence' || field === 'interest' ? parseInt(value) : value;
+                renderStakeholders();
+                saveData();
+            }
+        }
+
+        function deleteStakeholder(id) {
+            if (confirm('Stakeholder löschen?')) {
+                AppData.stakeholders = AppData.stakeholders.filter(s => s.id !== id);
+                renderStakeholders();
+                saveData();
+            }
+        }
 
         // Stufe 6
         function initEUAIActChecklist() {
@@ -2652,14 +2982,343 @@
             showToast('Governance-Board gespeichert!');
         }
 
-        function addDataSovereigntyCheck() { showToast('Data-Sovereignty-Feature in Entwicklung...'); }
+        function addDataSovereigntyCheck() {
+            const vendorName = prompt('Vendor-Name:');
+            if (!vendorName) return;
+
+            if (!AppData.dataSovereignty) AppData.dataSovereignty = [];
+            AppData.dataSovereignty.push({
+                id: Date.now(),
+                vendor: vendorName,
+                ownershipClause: false,
+                usageRestriction: false,
+                exportPossible: false,
+                noticePeriod: 30,
+                deletionGuarantee: false
+            });
+            renderDataSovereignty();
+            saveData();
+        }
+
+        function renderDataSovereignty() {
+            const container = document.getElementById('dataSovereigntyList');
+            if (!AppData.dataSovereignty || AppData.dataSovereignty.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>Keine Data-Sovereignty-Checks erfasst.</p></div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Vendor</th>
+                            <th>Ownership-Klausel</th>
+                            <th>Nutzungs-Beschränkung</th>
+                            <th>Export möglich</th>
+                            <th>Kündigungsfrist (Tage)</th>
+                            <th>Löschungs-Garantie</th>
+                            <th>Score</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${AppData.dataSovereignty.map(ds => {
+                            const score = (ds.ownershipClause ? 2 : 0) + (ds.usageRestriction ? 2 : 0) + (ds.exportPossible ? 2 : 0) + (ds.noticePeriod <= 30 ? 2 : 1) + (ds.deletionGuarantee ? 2 : 0);
+                            const color = score >= 8 ? 'success' : score >= 5 ? 'warning' : 'danger';
+                            return `
+                                <tr>
+                                    <td>${ds.vendor}</td>
+                                    <td><input type="checkbox" ${ds.ownershipClause ? 'checked' : ''} onchange="updateDataSovereignty(${ds.id}, 'ownershipClause', this.checked)"></td>
+                                    <td><input type="checkbox" ${ds.usageRestriction ? 'checked' : ''} onchange="updateDataSovereignty(${ds.id}, 'usageRestriction', this.checked)"></td>
+                                    <td><input type="checkbox" ${ds.exportPossible ? 'checked' : ''} onchange="updateDataSovereignty(${ds.id}, 'exportPossible', this.checked)"></td>
+                                    <td><input type="number" class="form-input" value="${ds.noticePeriod}" onchange="updateDataSovereignty(${ds.id}, 'noticePeriod', this.value)" style="width: 80px;"></td>
+                                    <td><input type="checkbox" ${ds.deletionGuarantee ? 'checked' : ''} onchange="updateDataSovereignty(${ds.id}, 'deletionGuarantee', this.checked)"></td>
+                                    <td><span class="badge badge-${color}">${score}/10</span></td>
+                                    <td><button class="btn btn-sm btn-danger" onclick="deleteDataSovereignty(${ds.id})">🗑️</button></td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function updateDataSovereignty(id, field, value) {
+            const ds = AppData.dataSovereignty.find(d => d.id === id);
+            if (ds) {
+                ds[field] = field === 'noticePeriod' ? parseInt(value) : value;
+                renderDataSovereignty();
+                saveData();
+            }
+        }
+
+        function deleteDataSovereignty(id) {
+            if (confirm('Data-Sovereignty-Check löschen?')) {
+                AppData.dataSovereignty = AppData.dataSovereignty.filter(d => d.id !== id);
+                renderDataSovereignty();
+                saveData();
+            }
+        }
 
         // Stufe 7
-        function addKPI() { showToast('KPI-Feature in Entwicklung...'); }
-        function addABTest() { showToast('A/B-Test-Feature in Entwicklung...'); }
-        function addDriftMonitor() { showToast('Drift-Monitoring-Feature in Entwicklung...'); }
-        function addLearning() { showToast('Learnings-Feature in Entwicklung...'); }
-        function searchLearnings() { }
+        function addKPI() {
+            const kpiName = prompt('KPI-Name:');
+            if (!kpiName) return;
+
+            if (!AppData.kpis) AppData.kpis = [];
+            AppData.kpis.push({
+                id: Date.now(),
+                name: kpiName,
+                category: 'business',
+                currentValue: 0,
+                targetValue: 0,
+                unit: '',
+                trend: 'neutral'
+            });
+            renderKPIs();
+            saveData();
+        }
+
+        function renderKPIs() {
+            const container = document.getElementById('kpiList');
+            if (!AppData.kpis || AppData.kpis.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>Keine KPIs definiert.</p></div>';
+                return;
+            }
+
+            container.innerHTML = AppData.kpis.map(kpi => `
+                <div class="card mb-16">
+                    <h4>${kpi.name}</h4>
+                    <div class="form-group">
+                        <label>Kategorie:</label>
+                        <select class="form-select" onchange="updateKPI(${kpi.id}, 'category', this.value)">
+                            <option value="business" ${kpi.category === 'business' ? 'selected' : ''}>Business</option>
+                            <option value="technical" ${kpi.category === 'technical' ? 'selected' : ''}>Technical</option>
+                            <option value="governance" ${kpi.category === 'governance' ? 'selected' : ''}>Governance</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Aktueller Wert:</label>
+                        <input type="number" class="form-input" value="${kpi.currentValue}" onchange="updateKPI(${kpi.id}, 'currentValue', this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>Zielwert:</label>
+                        <input type="number" class="form-input" value="${kpi.targetValue}" onchange="updateKPI(${kpi.id}, 'targetValue', this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>Einheit:</label>
+                        <input type="text" class="form-input" value="${kpi.unit}" onchange="updateKPI(${kpi.id}, 'unit', this.value)" placeholder="%, €, Anzahl, etc.">
+                    </div>
+                    <button class="btn btn-sm btn-danger" onclick="deleteKPI(${kpi.id})">🗑️ Löschen</button>
+                </div>
+            `).join('');
+
+            if (AppData.kpis.length > 0) {
+                document.getElementById('kpiChart').style.display = 'block';
+            }
+        }
+
+        function updateKPI(id, field, value) {
+            const kpi = AppData.kpis.find(k => k.id === id);
+            if (kpi) {
+                kpi[field] = field === 'currentValue' || field === 'targetValue' ? parseFloat(value) : value;
+                saveData();
+            }
+        }
+
+        function deleteKPI(id) {
+            if (confirm('KPI löschen?')) {
+                AppData.kpis = AppData.kpis.filter(k => k.id !== id);
+                renderKPIs();
+                saveData();
+            }
+        }
+
+        function addABTest() {
+            if (!AppData.abTests) AppData.abTests = [];
+            AppData.abTests.push({
+                id: Date.now(),
+                hypothesis: 'Neue Hypothese',
+                startDate: new Date().toISOString().split('T')[0],
+                sampleSize: 1000,
+                metric: '',
+                controlValue: 0,
+                testValue: 0,
+                decision: 'pending'
+            });
+            renderABTests();
+            saveData();
+        }
+
+        function renderABTests() {
+            const tbody = document.getElementById('abTestTableBody');
+            if (!AppData.abTests || AppData.abTests.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding: 32px;">Keine A/B-Tests erfasst.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = AppData.abTests.map(test => `
+                <tr>
+                    <td><input type="text" class="form-input" value="${test.hypothesis}" onchange="updateABTest(${test.id}, 'hypothesis', this.value)"></td>
+                    <td><input type="date" class="form-input" value="${test.startDate}" onchange="updateABTest(${test.id}, 'startDate', this.value)"></td>
+                    <td><input type="number" class="form-input" value="${test.sampleSize}" onchange="updateABTest(${test.id}, 'sampleSize', this.value)" style="width: 100px;"></td>
+                    <td><input type="text" class="form-input" value="${test.metric}" onchange="updateABTest(${test.id}, 'metric', this.value)"></td>
+                    <td><input type="number" step="0.01" class="form-input" value="${test.controlValue}" onchange="updateABTest(${test.id}, 'controlValue', this.value)" style="width: 80px;"></td>
+                    <td><input type="number" step="0.01" class="form-input" value="${test.testValue}" onchange="updateABTest(${test.id}, 'testValue', this.value)" style="width: 80px;"></td>
+                    <td>
+                        <select class="form-select" onchange="updateABTest(${test.id}, 'decision', this.value)">
+                            <option value="pending" ${test.decision === 'pending' ? 'selected' : ''}>Pending</option>
+                            <option value="go" ${test.decision === 'go' ? 'selected' : ''}>Go</option>
+                            <option value="no-go" ${test.decision === 'no-go' ? 'selected' : ''}>No-Go</option>
+                        </select>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateABTest(id, field, value) {
+            const test = AppData.abTests.find(t => t.id === id);
+            if (test) {
+                test[field] = field === 'sampleSize' ? parseInt(value) : field === 'controlValue' || field === 'testValue' ? parseFloat(value) : value;
+                saveData();
+            }
+        }
+
+        function addDriftMonitor() {
+            const systemName = prompt('KI-System Name:');
+            if (!systemName) return;
+
+            if (!AppData.driftMonitors) AppData.driftMonitors = [];
+            AppData.driftMonitors.push({
+                id: Date.now(),
+                system: systemName,
+                deploymentAccuracy: 95,
+                currentAccuracy: 95,
+                lastRetraining: new Date().toISOString().split('T')[0],
+                nextRetraining: ''
+            });
+            renderDriftMonitors();
+            saveData();
+        }
+
+        function renderDriftMonitors() {
+            const tbody = document.getElementById('driftMonitorTableBody');
+            if (!AppData.driftMonitors || AppData.driftMonitors.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center" style="padding: 32px;">Keine Drift-Monitoring-Systeme erfasst.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = AppData.driftMonitors.map(monitor => {
+                const drift = Math.abs(monitor.deploymentAccuracy - monitor.currentAccuracy);
+                const status = drift > 5 ? 'danger' : drift > 2 ? 'warning' : 'success';
+                const statusText = drift > 5 ? '⚠️ Alert' : drift > 2 ? '⚡ Watch' : '✓ OK';
+
+                return `
+                    <tr>
+                        <td>${monitor.system}</td>
+                        <td><input type="number" step="0.01" class="form-input" value="${monitor.deploymentAccuracy}" onchange="updateDriftMonitor(${monitor.id}, 'deploymentAccuracy', this.value)" style="width: 80px;"></td>
+                        <td><input type="number" step="0.01" class="form-input" value="${monitor.currentAccuracy}" onchange="updateDriftMonitor(${monitor.id}, 'currentAccuracy', this.value)" style="width: 80px;"></td>
+                        <td><span class="badge badge-${status}">${drift.toFixed(2)}%</span></td>
+                        <td><input type="date" class="form-input" value="${monitor.lastRetraining}" onchange="updateDriftMonitor(${monitor.id}, 'lastRetraining', this.value)"></td>
+                        <td><span class="badge badge-${status}">${statusText}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateDriftMonitor(id, field, value) {
+            const monitor = AppData.driftMonitors.find(m => m.id === id);
+            if (monitor) {
+                monitor[field] = field === 'deploymentAccuracy' || field === 'currentAccuracy' ? parseFloat(value) : value;
+                renderDriftMonitors();
+                saveData();
+            }
+        }
+
+        function addLearning() {
+            if (!AppData.learnings) AppData.learnings = [];
+            AppData.learnings.push({
+                id: Date.now(),
+                project: '',
+                category: 'technical',
+                whatWentWell: '',
+                whatWentWrong: '',
+                keyLearnings: '',
+                date: new Date().toISOString().split('T')[0],
+                tags: ''
+            });
+            renderLearnings();
+            saveData();
+        }
+
+        function renderLearnings() {
+            const container = document.getElementById('learningsList');
+            if (!AppData.learnings || AppData.learnings.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>Keine Learnings erfasst.</p></div>';
+                return;
+            }
+
+            container.innerHTML = AppData.learnings.map(learning => `
+                <div class="card mb-16">
+                    <div class="form-group">
+                        <label>Projekt-Name:</label>
+                        <input type="text" class="form-input" value="${learning.project}" onchange="updateLearning(${learning.id}, 'project', this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>Kategorie:</label>
+                        <select class="form-select" onchange="updateLearning(${learning.id}, 'category', this.value)">
+                            <option value="technical" ${learning.category === 'technical' ? 'selected' : ''}>Technical</option>
+                            <option value="process" ${learning.category === 'process' ? 'selected' : ''}>Process</option>
+                            <option value="stakeholder" ${learning.category === 'stakeholder' ? 'selected' : ''}>Stakeholder</option>
+                            <option value="vendor" ${learning.category === 'vendor' ? 'selected' : ''}>Vendor</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Was lief gut:</label>
+                        <textarea class="form-textarea" onchange="updateLearning(${learning.id}, 'whatWentWell', this.value)">${learning.whatWentWell}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Was lief schief:</label>
+                        <textarea class="form-textarea" onchange="updateLearning(${learning.id}, 'whatWentWrong', this.value)">${learning.whatWentWrong}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Key Learnings:</label>
+                        <textarea class="form-textarea" onchange="updateLearning(${learning.id}, 'keyLearnings', this.value)">${learning.keyLearnings}</textarea>
+                    </div>
+                    <button class="btn btn-sm btn-danger" onclick="deleteLearning(${learning.id})">🗑️ Löschen</button>
+                </div>
+            `).join('');
+        }
+
+        function updateLearning(id, field, value) {
+            const learning = AppData.learnings.find(l => l.id === id);
+            if (learning) {
+                learning[field] = value;
+                saveData();
+            }
+        }
+
+        function deleteLearning(id) {
+            if (confirm('Learning löschen?')) {
+                AppData.learnings = AppData.learnings.filter(l => l.id !== id);
+                renderLearnings();
+                saveData();
+            }
+        }
+
+        function searchLearnings() {
+            const query = document.getElementById('learningsSearch').value.toLowerCase();
+            if (!AppData.learnings) return;
+
+            const filtered = AppData.learnings.filter(l =>
+                l.project.toLowerCase().includes(query) ||
+                l.keyLearnings.toLowerCase().includes(query) ||
+                l.tags.toLowerCase().includes(query)
+            );
+
+            // Re-render with filtered results (simplified for now)
+            renderLearnings();
+        }
         function saveScalingPlan() {
             AppData.scalingPlan = {
                 phase1: document.getElementById('scale-phase1').value,
@@ -2671,10 +3330,341 @@
             showToast('Skalierungsplan gespeichert!');
         }
 
+        // ==================== EXPORT-FUNKTIONEN ====================
+
+        function exportAllDataJSON() {
+            const dataStr = JSON.stringify(AppData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `ki-governance-export-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToast('JSON-Export abgeschlossen!');
+        }
+
+        function exportAllDataCSV() {
+            let csv = '';
+
+            // Projects
+            if (AppData.projects && AppData.projects.length > 0) {
+                csv += '=== PROJEKTE ===\n';
+                csv += 'Name,Status,Budget,Beschreibung,Erstellt\n';
+                AppData.projects.forEach(p => {
+                    csv += `"${p.name}","${p.status}","${p.budget}","${p.description}","${p.created}"\n`;
+                });
+                csv += '\n';
+            }
+
+            // Dependencies
+            if (AppData.dependencies && AppData.dependencies.length > 0) {
+                csv += '=== ABHÄNGIGKEITEN ===\n';
+                csv += 'System,Vendor,Kritikalität,Wechselkosten,Lock-in-Risiko,Exit-Plan\n';
+                AppData.dependencies.forEach(d => {
+                    csv += `"${d.system}","${d.vendor}","${d.criticality}","${d.switchCost}","${d.lockInRisk}","${d.exitPlan}"\n`;
+                });
+                csv += '\n';
+            }
+
+            // Data Inventory
+            if (AppData.dataInventory && AppData.dataInventory.length > 0) {
+                csv += '=== DATEN-INVENTAR ===\n';
+                csv += 'Name,Typ,Volumen,Frequenz,Owner,KI-Verfügbar\n';
+                AppData.dataInventory.forEach(d => {
+                    csv += `"${d.name}","${d.type}","${d.volume}","${d.frequency}","${d.owner}","${d.aiReady}"\n`;
+                });
+                csv += '\n';
+            }
+
+            // Risks
+            if (AppData.risks && AppData.risks.length > 0) {
+                csv += '=== RISIKEN ===\n';
+                csv += 'Beschreibung,Kategorie,Wahrscheinlichkeit,Impact,Risk-Score,Mitigation,Status\n';
+                AppData.risks.forEach(r => {
+                    csv += `"${r.description}","${r.category}","${r.probability}","${r.impact}","${r.probability * r.impact}","${r.mitigation}","${r.status}"\n`;
+                });
+                csv += '\n';
+            }
+
+            // Vendor Scorecards
+            if (AppData.vendorScorecards && AppData.vendorScorecards.length > 0) {
+                csv += '=== VENDOR-SCORECARDS ===\n';
+                csv += 'Vendor,Tech-Fit,Stability,Portability,Support,Cost-Transparency,Compliance,Total\n';
+                AppData.vendorScorecards.forEach(v => {
+                    const total = v.techFit + v.stability + v.portability + v.support + v.costTransparency + v.compliance;
+                    csv += `"${v.name}","${v.techFit}","${v.stability}","${v.portability}","${v.support}","${v.costTransparency}","${v.compliance}","${total}"\n`;
+                });
+                csv += '\n';
+            }
+
+            // Team Members
+            if (AppData.teamMembers && AppData.teamMembers.length > 0) {
+                csv += '=== TEAM-MITGLIEDER ===\n';
+                csv += 'Name,Rolle,Skills,Verfügbarkeit\n';
+                AppData.teamMembers.forEach(m => {
+                    csv += `"${m.name}","${m.role}","${m.skills}","${m.availability}%"\n`;
+                });
+                csv += '\n';
+            }
+
+            // KPIs
+            if (AppData.kpis && AppData.kpis.length > 0) {
+                csv += '=== KPIs ===\n';
+                csv += 'Name,Kategorie,Aktuell,Ziel,Einheit\n';
+                AppData.kpis.forEach(k => {
+                    csv += `"${k.name}","${k.category}","${k.currentValue}","${k.targetValue}","${k.unit}"\n`;
+                });
+                csv += '\n';
+            }
+
+            const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `ki-governance-export-${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToast('CSV-Export abgeschlossen!');
+        }
+
+        async function generatePDFReport() {
+            showToast('PDF-Report wird erstellt...');
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                let y = 20;
+                const pageWidth = doc.internal.pageSize.width;
+                const pageHeight = doc.internal.pageSize.height;
+                const margin = 20;
+                const maxWidth = pageWidth - 2 * margin;
+
+                // Helper function to add new page if needed
+                function checkPageBreak(additionalHeight = 10) {
+                    if (y + additionalHeight > pageHeight - margin) {
+                        doc.addPage();
+                        y = margin;
+                        return true;
+                    }
+                    return false;
+                }
+
+                // Title
+                doc.setFontSize(24);
+                doc.setFont(undefined, 'bold');
+                doc.text('KI-Governance Report', margin, y);
+                y += 15;
+
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                doc.text(`Erstellt am: ${new Date().toLocaleDateString('de-DE')}`, margin, y);
+                y += 10;
+
+                // Company Info
+                if (AppData.company && AppData.company.name) {
+                    checkPageBreak(20);
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Unternehmensprofil', margin, y);
+                    y += 8;
+
+                    doc.setFontSize(10);
+                    doc.setFont(undefined, 'normal');
+                    doc.text(`Unternehmen: ${AppData.company.name}`, margin, y);
+                    y += 6;
+                    doc.text(`Größe: ${AppData.company.size || '-'}`, margin, y);
+                    y += 6;
+                    doc.text(`Branche: ${AppData.company.industry || '-'}`, margin, y);
+                    y += 6;
+                    doc.text(`Reifegrad: ${AppData.company.maturityLevel ? AppData.company.maturityLevel + '/50' : 'Nicht ermittelt'}`, margin, y);
+                    y += 15;
+                }
+
+                // Projects Summary
+                if (AppData.projects && AppData.projects.length > 0) {
+                    checkPageBreak(20);
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(`Projekte (${AppData.projects.length})`, margin, y);
+                    y += 8;
+
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'normal');
+
+                    AppData.projects.forEach((project, idx) => {
+                        checkPageBreak(15);
+                        doc.text(`${idx + 1}. ${project.name} - ${project.status}`, margin + 5, y);
+                        y += 5;
+                        if (project.budget) {
+                            doc.text(`   Budget: €${parseInt(project.budget).toLocaleString()}`, margin + 5, y);
+                            y += 5;
+                        }
+                    });
+                    y += 10;
+                }
+
+                // Dependencies
+                if (AppData.dependencies && AppData.dependencies.length > 0) {
+                    checkPageBreak(20);
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(`KI-Abhängigkeiten (${AppData.dependencies.length})`, margin, y);
+                    y += 8;
+
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'normal');
+
+                    AppData.dependencies.forEach((dep, idx) => {
+                        checkPageBreak(10);
+                        doc.text(`${idx + 1}. ${dep.system} (${dep.vendor})`, margin + 5, y);
+                        y += 5;
+                        doc.text(`   Kritikalität: ${dep.criticality}, Lock-in-Risiko: ${dep.lockInRisk}/5`, margin + 5, y);
+                        y += 5;
+                    });
+                    y += 10;
+                }
+
+                // Risks Summary
+                if (AppData.risks && AppData.risks.length > 0) {
+                    checkPageBreak(20);
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(`Risiken (${AppData.risks.length})`, margin, y);
+                    y += 8;
+
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'normal');
+
+                    // Top 5 highest risks
+                    const sortedRisks = [...AppData.risks].sort((a, b) => (b.probability * b.impact) - (a.probability * a.impact)).slice(0, 5);
+
+                    sortedRisks.forEach((risk, idx) => {
+                        checkPageBreak(10);
+                        const score = risk.probability * risk.impact;
+                        doc.text(`${idx + 1}. ${risk.description}`, margin + 5, y);
+                        y += 5;
+                        doc.text(`   Risk-Score: ${score} (W:${risk.probability}, I:${risk.impact}) - ${risk.status}`, margin + 5, y);
+                        y += 5;
+                    });
+                    y += 10;
+                }
+
+                // Vendor Scorecards
+                if (AppData.vendorScorecards && AppData.vendorScorecards.length > 0) {
+                    checkPageBreak(20);
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(`Vendor-Bewertungen (${AppData.vendorScorecards.length})`, margin, y);
+                    y += 8;
+
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'normal');
+
+                    AppData.vendorScorecards.forEach((vendor, idx) => {
+                        checkPageBreak(8);
+                        const total = vendor.techFit + vendor.stability + vendor.portability + vendor.support + vendor.costTransparency + vendor.compliance;
+                        doc.text(`${idx + 1}. ${vendor.name}: ${total}/30 Punkte`, margin + 5, y);
+                        y += 5;
+                    });
+                    y += 10;
+                }
+
+                // Team Summary
+                if (AppData.teamMembers && AppData.teamMembers.length > 0) {
+                    checkPageBreak(20);
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(`Team (${AppData.teamMembers.length} Mitglieder)`, margin, y);
+                    y += 8;
+
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'normal');
+
+                    AppData.teamMembers.forEach((member, idx) => {
+                        checkPageBreak(8);
+                        doc.text(`${idx + 1}. ${member.name} - ${member.role || 'Keine Rolle'}`, margin + 5, y);
+                        y += 5;
+                    });
+                    y += 10;
+                }
+
+                // KPIs
+                if (AppData.kpis && AppData.kpis.length > 0) {
+                    checkPageBreak(20);
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(`KPIs (${AppData.kpis.length})`, margin, y);
+                    y += 8;
+
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'normal');
+
+                    AppData.kpis.forEach((kpi, idx) => {
+                        checkPageBreak(10);
+                        doc.text(`${idx + 1}. ${kpi.name}`, margin + 5, y);
+                        y += 5;
+                        doc.text(`   Aktuell: ${kpi.currentValue}${kpi.unit} | Ziel: ${kpi.targetValue}${kpi.unit}`, margin + 5, y);
+                        y += 5;
+                    });
+                    y += 10;
+                }
+
+                // Footer on last page
+                checkPageBreak(20);
+                y = pageHeight - 15;
+                doc.setFontSize(8);
+                doc.setTextColor(128, 128, 128);
+                doc.text('Erstellt mit KI-Governance Control Center', margin, y);
+                doc.text(`Seiten: ${doc.internal.getNumberOfPages()}`, pageWidth - margin - 30, y);
+
+                // Save PDF
+                doc.save(`ki-governance-report-${new Date().toISOString().split('T')[0]}.pdf`);
+                showToast('PDF-Report erfolgreich erstellt!');
+
+            } catch (error) {
+                console.error('PDF-Fehler:', error);
+                showToast('Fehler beim Erstellen des PDFs: ' + error.message);
+            }
+        }
+
+        // Override exportAllData to offer JSON and CSV
+        function exportAllData() {
+            if (confirm('Als JSON exportieren? (Abbrechen für CSV)')) {
+                exportAllDataJSON();
+            } else {
+                exportAllDataCSV();
+            }
+        }
+
+        // Update exportReport to use new PDF function
+        function exportReport() {
+            generatePDFReport();
+        }
+
         // Initialize on load
         if (document.getElementById('euaiact-cat1')) {
             initEUAIActChecklist();
         }
+
+        // Initialize render functions on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Render all existing data
+            if (AppData.dependencies && AppData.dependencies.length > 0) renderDependencies();
+            if (AppData.tco && AppData.tco.length > 0) renderTCOSystems();
+            if (AppData.dataInventory && AppData.dataInventory.length > 0) renderDataInventory();
+            if (AppData.risks && AppData.risks.length > 0) renderRisks();
+            if (AppData.buildBuyDecisions && AppData.buildBuyDecisions.length > 0) renderBuildBuyDecisions();
+            if (AppData.vendorScorecards && AppData.vendorScorecards.length > 0) renderVendorScorecards();
+            if (AppData.teamMembers && AppData.teamMembers.length > 0) renderTeamMembers();
+            if (AppData.stakeholders && AppData.stakeholders.length > 0) renderStakeholders();
+            if (AppData.dataSovereignty && AppData.dataSovereignty.length > 0) renderDataSovereignty();
+            if (AppData.kpis && AppData.kpis.length > 0) renderKPIs();
+            if (AppData.abTests && AppData.abTests.length > 0) renderABTests();
+            if (AppData.driftMonitors && AppData.driftMonitors.length > 0) renderDriftMonitors();
+            if (AppData.learnings && AppData.learnings.length > 0) renderLearnings();
+        });
     </script>
 </body>
 </html>
