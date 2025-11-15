@@ -1402,15 +1402,24 @@
                     <!-- 90-Tage-Plan -->
                     <div class="tab-content" id="stufe5-tab-2">
                         <div class="card">
-                            <h3 class="card-title mb-16">90-Tage Change-Plan</h3>
+                            <div class="card-header">
+                                <h3 class="card-title">90-Tage Change-Plan</h3>
+                                <button class="btn btn-sm btn-primary" onclick="addChangePlanTask()">+ Aufgabe hinzufügen</button>
+                            </div>
                             <p class="mb-24" style="color: var(--gray-600);">Planen Sie die ersten 12 Wochen Ihrer KI-Transformation.</p>
 
-                            <div id="changePlanCalendar">
-                                <div class="empty-state">
-                                    <div class="empty-state-icon">📅</div>
-                                    <p>90-Tage-Plan-Feature in Entwicklung...</p>
+                            <!-- Progress Overview -->
+                            <div class="mb-24" style="background: var(--gray-50); padding: 16px; border-radius: 8px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <span style="font-weight: 600;">Gesamtfortschritt</span>
+                                    <span id="changePlanProgress">0%</span>
+                                </div>
+                                <div style="width: 100%; background: var(--gray-200); height: 8px; border-radius: 4px; overflow: hidden;">
+                                    <div id="changePlanProgressBar" style="width: 0%; height: 100%; background: var(--success); transition: width 0.3s;"></div>
                                 </div>
                             </div>
+
+                            <div id="changePlanCalendar"></div>
                         </div>
                     </div>
 
@@ -2022,7 +2031,28 @@
             document.getElementById('activeProjects').textContent = activeProjects;
             document.querySelector('#activeProjects').nextElementSibling.textContent = completedProjects + ' abgeschlossen';
 
-            // Update timeline
+            // Update compliance score (based on EU AI Act checklist)
+            let checkedItems = 0;
+            let totalItems = 0;
+            ['cat1', 'cat2', 'cat3', 'cat4', 'cat5', 'cat6'].forEach(cat => {
+                const container = document.getElementById(`euaiact-${cat}`);
+                if (container) {
+                    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+                    totalItems += checkboxes.length;
+                    checkboxes.forEach(cb => { if (cb.checked) checkedItems++; });
+                }
+            });
+            const compliancePercent = totalItems > 0 ? Math.round((checkedItems / totalItems) * 100) : 0;
+            document.getElementById('complianceScore').textContent = compliancePercent + '%';
+
+            // Update ROI (based on projects with defined ROI)
+            const projectsWithROI = AppData.projects.filter(p => p.roi && p.roi !== '');
+            if (projectsWithROI.length > 0) {
+                const avgROI = projectsWithROI.reduce((sum, p) => sum + parseFloat(p.roi || 0), 0) / projectsWithROI.length;
+                document.getElementById('roiValue').textContent = Math.round(avgROI) + '%';
+            }
+
+            // Update timeline with real data
             updateTimeline();
         }
 
@@ -2035,17 +2065,42 @@
         }
 
         function updateTimeline() {
-            // Simple progress calculation based on completed tasks
-            for (let i = 1; i <= 7; i++) {
-                const dot = document.getElementById(`timeline-${i}`);
-                // This would be calculated based on actual completion of tasks in each stage
-                const progress = 0; // Placeholder
-                if (progress >= 100) {
-                    dot.classList.add('completed');
-                } else if (progress > 0) {
-                    dot.classList.add('active');
+            // Calculate progress for each stage based on actual data
+            const stageProgress = [
+                // Stufe 1: Bewusstsein (Dependencies + TCO)
+                Math.min(100, ((AppData.dependencies?.length || 0) + (AppData.tco?.length || 0)) * 20),
+                // Stufe 2: Audit (Data Inventory + Risks + Use Cases)
+                Math.min(100, ((AppData.dataInventory?.length || 0) + (AppData.risks?.length || 0) + (AppData.useCases?.length || 0)) * 10),
+                // Stufe 3: Strategie (Business Cases)
+                Math.min(100, (AppData.businessCases?.length || 0) * 25),
+                // Stufe 4: Technologie (Build/Buy + Vendor Scorecards)
+                Math.min(100, ((AppData.buildBuyDecisions?.length || 0) + (AppData.vendorScorecards?.length || 0)) * 20),
+                // Stufe 5: Menschen (Team + Change Plan + Stakeholders)
+                Math.min(100, ((AppData.teamMembers?.length || 0) + (AppData.changePlanTasks?.length || 0) + (AppData.stakeholders?.length || 0)) * 10),
+                // Stufe 6: Governance (Data Sovereignty)
+                Math.min(100, (AppData.dataSovereignty?.length || 0) * 25),
+                // Stufe 7: Evolution (KPIs + A/B Tests + Drift + Learnings)
+                Math.min(100, ((AppData.kpis?.length || 0) + (AppData.abTests?.length || 0) + (AppData.driftMonitors?.length || 0) + (AppData.learnings?.length || 0)) * 10)
+            ];
+
+            stageProgress.forEach((progress, index) => {
+                const stageNum = index + 1;
+                const dot = document.getElementById(`timeline-${stageNum}`);
+                const progressLabel = dot.parentElement.querySelector('.timeline-progress');
+
+                if (dot) {
+                    dot.classList.remove('completed', 'active');
+                    if (progress >= 100) {
+                        dot.classList.add('completed');
+                    } else if (progress > 0) {
+                        dot.classList.add('active');
+                    }
                 }
-            }
+
+                if (progressLabel) {
+                    progressLabel.textContent = Math.round(progress) + '%';
+                }
+            });
         }
 
         // ==================== STUFE 1: INVENTORY ====================
@@ -2468,7 +2523,110 @@
         }
 
         function addUseCase() {
-            showToast('Use-Case hinzugefügt - Feature in Entwicklung...');
+            const name = prompt('Name des Use Cases:');
+            if (!name) return;
+
+            if (!AppData.useCases) AppData.useCases = [];
+            AppData.useCases.push({
+                id: Date.now(),
+                name: name,
+                impact: 50, // 0-100 (Niedrig bis Hoch)
+                feasibility: 50, // 0-100 (Schwer bis Leicht)
+                description: ''
+            });
+            renderUseCases();
+            saveData();
+        }
+
+        function renderUseCases() {
+            const container = document.getElementById('useCaseBubbles');
+            if (!AppData.useCases || AppData.useCases.length === 0) {
+                container.innerHTML = '<div class="empty-state" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);"><p>Keine Use Cases erfasst.</p></div>';
+                return;
+            }
+
+            container.innerHTML = '';
+
+            AppData.useCases.forEach(useCase => {
+                const bubble = document.createElement('div');
+                bubble.className = 'use-case-bubble';
+                bubble.style.cssText = `
+                    position: absolute;
+                    left: ${useCase.impact}%;
+                    bottom: ${useCase.feasibility}%;
+                    transform: translate(-50%, 50%);
+                    background: ${getQuadrantColor(useCase.impact, useCase.feasibility)};
+                    color: white;
+                    padding: 12px 16px;
+                    border-radius: 20px;
+                    cursor: move;
+                    font-size: 0.875rem;
+                    font-weight: 600;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                    white-space: nowrap;
+                    user-select: none;
+                    z-index: 10;
+                `;
+                bubble.textContent = useCase.name;
+                bubble.title = 'Drag to move • Click to edit';
+
+                bubble.addEventListener('mousedown', startDragUseCase.bind(null, useCase.id));
+                bubble.addEventListener('dblclick', () => editUseCase(useCase.id));
+
+                container.appendChild(bubble);
+            });
+        }
+
+        function getQuadrantColor(impact, feasibility) {
+            if (impact >= 50 && feasibility >= 50) return '#10b981';
+            if (impact >= 50 && feasibility < 50) return '#2563eb';
+            if (impact < 50 && feasibility >= 50) return '#f59e0b';
+            return '#6b7280';
+        }
+
+        let draggedUseCaseId = null;
+
+        function startDragUseCase(id, e) {
+            if (e.button !== 0) return;
+            draggedUseCaseId = id;
+            e.preventDefault();
+
+            const moveHandler = (moveEvent) => {
+                const matrix = document.getElementById('heatmapContainer');
+                const rect = matrix.getBoundingClientRect();
+                const x = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+                const y = ((rect.bottom - moveEvent.clientY) / rect.height) * 100;
+                const clampedX = Math.max(0, Math.min(100, x));
+                const clampedY = Math.max(0, Math.min(100, y));
+
+                const useCase = AppData.useCases.find(uc => uc.id === draggedUseCaseId);
+                if (useCase) {
+                    useCase.impact = Math.round(clampedX);
+                    useCase.feasibility = Math.round(clampedY);
+                    renderUseCases();
+                }
+            };
+
+            const upHandler = () => {
+                saveData();
+                document.removeEventListener('mousemove', moveHandler);
+                document.removeEventListener('mouseup', upHandler);
+            };
+
+            document.addEventListener('mousemove', moveHandler);
+            document.addEventListener('mouseup', upHandler);
+        }
+
+        function editUseCase(id) {
+            const useCase = AppData.useCases.find(uc => uc.id === id);
+            if (!useCase) return;
+
+            const newName = prompt('Use Case Name:', useCase.name);
+            if (newName && newName !== useCase.name) {
+                useCase.name = newName;
+                renderUseCases();
+                saveData();
+            }
         }
 
         function addRisk() {
@@ -2562,7 +2720,129 @@
         }
 
         function exportVisionPDF() { window.print(); }
-        function createBusinessCase() { showToast('Business-Case-Feature in Entwicklung...'); }
+        function createBusinessCase() {
+            const projectName = prompt('Projekt-Name für Business Case:');
+            if (!projectName) return;
+
+            if (!AppData.businessCases) AppData.businessCases = [];
+            AppData.businessCases.push({
+                id: Date.now(),
+                projectName: projectName,
+                strategicFit: '',
+                problemStatement: '',
+                solution: '',
+                quantBenefit: '',
+                qualBenefit: '',
+                implementationCost: 0,
+                runningCost: 0,
+                npv: 0,
+                risks: '',
+                kpis: '',
+                timeline: '',
+                resources: ''
+            });
+            renderBusinessCases();
+            saveData();
+        }
+
+        function renderBusinessCases() {
+            const container = document.getElementById('businessCasesList');
+            if (!AppData.businessCases || AppData.businessCases.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>Keine Business Cases vorhanden.</p></div>';
+                return;
+            }
+
+            container.innerHTML = AppData.businessCases.map(bc => `
+                <div class="card mb-24">
+                    <h3>${bc.projectName}</h3>
+
+                    <div class="form-group">
+                        <label class="form-label">Strategischer Fit</label>
+                        <select class="form-select" onchange="updateBusinessCase(${bc.id}, 'strategicFit', this.value)">
+                            <option value="">Wählen...</option>
+                            <option value="high" ${bc.strategicFit === 'high' ? 'selected' : ''}>Hoch</option>
+                            <option value="medium" ${bc.strategicFit === 'medium' ? 'selected' : ''}>Mittel</option>
+                            <option value="low" ${bc.strategicFit === 'low' ? 'selected' : ''}>Niedrig</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Problem-Statement</label>
+                        <textarea class="form-textarea" onchange="updateBusinessCase(${bc.id}, 'problemStatement', this.value)">${bc.problemStatement}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Geplante Lösung</label>
+                        <textarea class="form-textarea" onchange="updateBusinessCase(${bc.id}, 'solution', this.value)">${bc.solution}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Quantifizierbarer Nutzen</label>
+                        <input type="text" class="form-input" value="${bc.quantBenefit}" onchange="updateBusinessCase(${bc.id}, 'quantBenefit', this.value)" placeholder="z.B. 20% Effizienzsteigerung, €50k Kosteneinsparung">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Qualitativer Nutzen</label>
+                        <input type="text" class="form-input" value="${bc.qualBenefit}" onchange="updateBusinessCase(${bc.id}, 'qualBenefit', this.value)" placeholder="z.B. Bessere User Experience">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Implementierungskosten (€)</label>
+                        <input type="number" class="form-input" value="${bc.implementationCost}" onchange="updateBusinessCase(${bc.id}, 'implementationCost', this.value)">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Laufende Kosten pro Jahr (€)</label>
+                        <input type="number" class="form-input" value="${bc.runningCost}" onchange="updateBusinessCase(${bc.id}, 'runningCost', this.value)">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Geschätzter NPV (€)</label>
+                        <input type="number" class="form-input" value="${bc.npv}" onchange="updateBusinessCase(${bc.id}, 'npv', this.value)">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Top 3 Risiken</label>
+                        <textarea class="form-textarea" onchange="updateBusinessCase(${bc.id}, 'risks', this.value)">${bc.risks}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Erfolgskriterien (KPIs)</label>
+                        <input type="text" class="form-input" value="${bc.kpis}" onchange="updateBusinessCase(${bc.id}, 'kpis', this.value)" placeholder="z.B. 90% Accuracy, <2s Response Time">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Timeline</label>
+                        <input type="text" class="form-input" value="${bc.timeline}" onchange="updateBusinessCase(${bc.id}, 'timeline', this.value)" placeholder="z.B. Q1-Q2 2025">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Ressourcen-Bedarf</label>
+                        <input type="text" class="form-input" value="${bc.resources}" onchange="updateBusinessCase(${bc.id}, 'resources', this.value)" placeholder="z.B. 2 Data Scientists, 1 ML Engineer">
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-danger" onclick="deleteBusinessCase(${bc.id})">🗑️ Löschen</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateBusinessCase(id, field, value) {
+            const bc = AppData.businessCases.find(b => b.id === id);
+            if (bc) {
+                bc[field] = field === 'implementationCost' || field === 'runningCost' || field === 'npv' ? parseFloat(value) || 0 : value;
+                saveData();
+            }
+        }
+
+        function deleteBusinessCase(id) {
+            if (confirm('Business Case löschen?')) {
+                AppData.businessCases = AppData.businessCases.filter(b => b.id !== id);
+                renderBusinessCases();
+                saveData();
+            }
+        }
 
         // Stufe 4
         function addBuildBuyDecision() {
@@ -2898,6 +3178,117 @@
                 AppData.stakeholders = AppData.stakeholders.filter(s => s.id !== id);
                 renderStakeholders();
                 saveData();
+            }
+        }
+
+        // 90-Tage Change Plan
+        function addChangePlanTask() {
+            const task = prompt('Aufgabe:');
+            if (!task) return;
+
+            if (!AppData.changePlanTasks) AppData.changePlanTasks = [];
+            AppData.changePlanTasks.push({
+                id: Date.now(),
+                task: task,
+                week: 1,
+                responsible: '',
+                status: 'To Do',
+                description: ''
+            });
+            renderChangePlan();
+            saveData();
+            updateDashboard();
+        }
+
+        function renderChangePlan() {
+            const container = document.getElementById('changePlanCalendar');
+            if (!AppData.changePlanTasks) AppData.changePlanTasks = [];
+
+            // Calculate progress
+            const totalTasks = AppData.changePlanTasks.length;
+            const completedTasks = AppData.changePlanTasks.filter(t => t.status === 'Done').length;
+            const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+            document.getElementById('changePlanProgress').textContent = `${progressPercent}%`;
+            document.getElementById('changePlanProgressBar').style.width = `${progressPercent}%`;
+
+            if (AppData.changePlanTasks.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📅</div><p>Keine Aufgaben geplant. Fügen Sie Aufgaben hinzu.</p></div>';
+                return;
+            }
+
+            // Group tasks by week
+            const tasksByWeek = {};
+            for (let i = 1; i <= 12; i++) {
+                tasksByWeek[i] = AppData.changePlanTasks.filter(t => t.week === i);
+            }
+
+            container.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+                    ${Object.keys(tasksByWeek).map(week => {
+                        const tasks = tasksByWeek[week];
+                        const weekNum = parseInt(week);
+                        const completedInWeek = tasks.filter(t => t.status === 'Done').length;
+                        const weekProgress = tasks.length > 0 ? Math.round((completedInWeek / tasks.length) * 100) : 0;
+
+                        return `
+                            <div class="card" style="background: var(--gray-50); border: 2px solid var(--gray-200);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                    <h4 style="margin: 0;">Woche ${weekNum}</h4>
+                                    <span class="badge ${weekProgress === 100 ? 'badge-success' : 'badge-secondary'}">${weekProgress}%</span>
+                                </div>
+                                ${tasks.length === 0 ? '<p style="color: var(--gray-500); font-size: 0.875rem;">Keine Aufgaben</p>' :
+                                    tasks.map(task => `
+                                        <div class="card mb-12" style="padding: 12px; background: white;">
+                                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                                                <strong style="flex: 1;">${task.task}</strong>
+                                                <button class="btn btn-sm btn-danger" onclick="deleteChangePlanTask(${task.id})" style="padding: 2px 8px; margin-left: 8px;">🗑️</button>
+                                            </div>
+                                            ${task.description ? `<p style="font-size: 0.875rem; color: var(--gray-600); margin-bottom: 8px;">${task.description}</p>` : ''}
+                                            <div style="margin-bottom: 8px;">
+                                                <label style="font-size: 0.75rem; color: var(--gray-600);">Woche:</label>
+                                                <select class="form-select" value="${task.week}" onchange="updateChangePlanTask(${task.id}, 'week', parseInt(this.value))" style="font-size: 0.875rem; padding: 4px;">
+                                                    ${[1,2,3,4,5,6,7,8,9,10,11,12].map(w => `<option value="${w}" ${w === task.week ? 'selected' : ''}>Woche ${w}</option>`).join('')}
+                                                </select>
+                                            </div>
+                                            <div style="margin-bottom: 8px;">
+                                                <label style="font-size: 0.75rem; color: var(--gray-600);">Verantwortlich:</label>
+                                                <input type="text" class="form-input" value="${task.responsible}" placeholder="Name" onchange="updateChangePlanTask(${task.id}, 'responsible', this.value)" style="font-size: 0.875rem; padding: 4px;">
+                                            </div>
+                                            <div>
+                                                <label style="font-size: 0.75rem; color: var(--gray-600);">Status:</label>
+                                                <select class="form-select" value="${task.status}" onchange="updateChangePlanTask(${task.id}, 'status', this.value)" style="font-size: 0.875rem; padding: 4px;">
+                                                    <option value="To Do" ${task.status === 'To Do' ? 'selected' : ''}>📋 To Do</option>
+                                                    <option value="In Progress" ${task.status === 'In Progress' ? 'selected' : ''}>🔄 In Progress</option>
+                                                    <option value="Done" ${task.status === 'Done' ? 'selected' : ''}>✅ Done</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    `).join('')
+                                }
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function updateChangePlanTask(id, field, value) {
+            const task = AppData.changePlanTasks.find(t => t.id === id);
+            if (task) {
+                task[field] = value;
+                renderChangePlan();
+                saveData();
+                updateDashboard();
+            }
+        }
+
+        function deleteChangePlanTask(id) {
+            if (confirm('Aufgabe löschen?')) {
+                AppData.changePlanTasks = AppData.changePlanTasks.filter(t => t.id !== id);
+                renderChangePlan();
+                saveData();
+                updateDashboard();
             }
         }
 
@@ -3655,9 +4046,12 @@
             if (AppData.tco && AppData.tco.length > 0) renderTCOSystems();
             if (AppData.dataInventory && AppData.dataInventory.length > 0) renderDataInventory();
             if (AppData.risks && AppData.risks.length > 0) renderRisks();
+            if (AppData.useCases && AppData.useCases.length > 0) renderUseCases();
+            if (AppData.businessCases && AppData.businessCases.length > 0) renderBusinessCases();
             if (AppData.buildBuyDecisions && AppData.buildBuyDecisions.length > 0) renderBuildBuyDecisions();
             if (AppData.vendorScorecards && AppData.vendorScorecards.length > 0) renderVendorScorecards();
             if (AppData.teamMembers && AppData.teamMembers.length > 0) renderTeamMembers();
+            if (AppData.changePlanTasks && AppData.changePlanTasks.length > 0) renderChangePlan();
             if (AppData.stakeholders && AppData.stakeholders.length > 0) renderStakeholders();
             if (AppData.dataSovereignty && AppData.dataSovereignty.length > 0) renderDataSovereignty();
             if (AppData.kpis && AppData.kpis.length > 0) renderKPIs();
