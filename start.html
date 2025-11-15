@@ -1,0 +1,2680 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KI-Governance Control Center</title>
+    <link rel="icon" type="image/png" href="cover.png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --sidebar-width: 280px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+            line-height: 1.6;
+            color: var(--gray-800);
+            background: var(--gray-100);
+            overflow-x: hidden;
+        }
+
+        body.dark-mode {
+            --gray-50: #1f2937;
+            --gray-100: #111827;
+            --gray-200: #374151;
+            --gray-300: #4b5563;
+            --gray-600: #d1d5db;
+            --gray-700: #e5e7eb;
+            --gray-800: #f3f4f6;
+            --gray-900: #f9fafb;
+            background: #0f1419;
+        }
+
+        /* Layout */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: white;
+            border-right: 1px solid var(--gray-200);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar-logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+        }
+
+        .sidebar-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--gray-700);
+            font-weight: 500;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: var(--gray-50);
+            color: var(--primary);
+        }
+
+        .nav-item.active {
+            background: #eff6ff;
+            color: var(--primary);
+            border-left-color: var(--primary);
+        }
+
+        .nav-icon {
+            font-size: 1.25rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.expanded {
+            margin-left: 0;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid var(--gray-200);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray-700);
+        }
+
+        .breadcrumbs {
+            color: var(--gray-600);
+            font-size: 0.875rem;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .content-area {
+            padding: 32px;
+            max-width: 1400px;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        /* Status Cards Grid */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .status-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid;
+        }
+
+        .status-card.primary { border-left-color: var(--primary); }
+        .status-card.success { border-left-color: var(--success); }
+        .status-card.warning { border-left-color: var(--warning); }
+        .status-card.info { border-left-color: var(--info); }
+
+        .status-card-label {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            margin-bottom: 8px;
+        }
+
+        .status-card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 8px;
+        }
+
+        .status-card-subtitle {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-300);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.75rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* Timeline */
+        .timeline {
+            display: flex;
+            justify-content: space-between;
+            margin: 32px 0;
+            position: relative;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gray-200);
+            z-index: 0;
+        }
+
+        .timeline-item {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .timeline-dot {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--gray-200);
+            color: var(--gray-600);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .timeline-dot.completed {
+            background: var(--success);
+            color: white;
+        }
+
+        .timeline-dot.active {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.2);
+        }
+
+        .timeline-label {
+            font-size: 0.75rem;
+            color: var(--gray-600);
+            font-weight: 600;
+        }
+
+        .timeline-progress {
+            font-size: 0.625rem;
+            color: var(--gray-500);
+        }
+
+        /* Table */
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th {
+            background: var(--gray-50);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--gray-700);
+            border-bottom: 2px solid var(--gray-200);
+        }
+
+        .table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .table tr:hover {
+            background: var(--gray-50);
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--gray-700);
+            font-size: 0.875rem;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-primary { background: #dbeafe; color: var(--primary); }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .badge-gray { background: var(--gray-200); color: var(--gray-700); }
+
+        /* Progress Bar */
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: var(--gray-200);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.3s;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--gray-200);
+            margin-bottom: 24px;
+            gap: 8px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+            font-weight: 500;
+            color: var(--gray-600);
+        }
+
+        .tab:hover {
+            color: var(--primary);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .modal-close {
+            float: right;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray-600);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            background: var(--gray-900);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 3000;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Checklist */
+        .checklist-item {
+            padding: 12px;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .checklist-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        /* Stars Rating */
+        .stars {
+            display: inline-flex;
+            gap: 4px;
+        }
+
+        .star {
+            cursor: pointer;
+            color: var(--gray-300);
+            font-size: 1.25rem;
+        }
+
+        .star.filled {
+            color: #fbbf24;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 64px 32px;
+            color: var(--gray-600);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+
+            .content-area {
+                padding: 16px;
+            }
+
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .timeline {
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .timeline::before {
+                width: 4px;
+                height: 100%;
+                top: 0;
+                left: 20px;
+            }
+
+            .timeline-item {
+                text-align: left;
+                padding-left: 60px;
+            }
+        }
+
+        /* Utility Classes */
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .mb-8 { margin-bottom: 8px; }
+        .mb-16 { margin-bottom: 16px; }
+        .mb-24 { margin-bottom: 24px; }
+        .mt-16 { margin-top: 16px; }
+        .mt-32 { margin-top: 32px; }
+
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+
+        .chart-container-large {
+            height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="cover.png" alt="Logo" class="sidebar-logo">
+                <div class="sidebar-title">KI-Governance<br>Control Center</div>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-item active" onclick="navigateTo('dashboard')">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </div>
+                <div class="nav-item" onclick="navigateTo('stufe1')">
+                    <span class="nav-icon">🔍</span>
+                    <span>Stufe 1: Bewusstsein</span>
+                </div>
+                <div class="nav-item" onclick="navigateTo('stufe2')">
+                    <span class="nav-icon">📋</span>
+                    <span>Stufe 2: Audit</span>
+                </div>
+                <div class="nav-item" onclick="navigateTo('stufe3')">
+                    <span class="nav-icon">🎯</span>
+                    <span>Stufe 3: Strategie</span>
+                </div>
+                <div class="nav-item" onclick="navigateTo('stufe4')">
+                    <span class="nav-icon">💻</span>
+                    <span>Stufe 4: Technologie</span>
+                </div>
+                <div class="nav-item" onclick="navigateTo('stufe5')">
+                    <span class="nav-icon">👥</span>
+                    <span>Stufe 5: Menschen</span>
+                </div>
+                <div class="nav-item" onclick="navigateTo('stufe6')">
+                    <span class="nav-icon">⚖️</span>
+                    <span>Stufe 6: Governance</span>
+                </div>
+                <div class="nav-item" onclick="navigateTo('stufe7')">
+                    <span class="nav-icon">📈</span>
+                    <span>Stufe 7: Evolution</span>
+                </div>
+                <div class="nav-item" onclick="navigateTo('settings')">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Einstellungen</span>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content" id="mainContent">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+                    <div class="breadcrumbs" id="breadcrumbs">Dashboard</div>
+                </div>
+                <div class="header-right">
+                    <button class="btn btn-sm btn-secondary" onclick="toggleDarkMode()">🌓</button>
+                    <button class="btn btn-sm btn-primary" onclick="openModal('newProjectModal')">+ Neues Projekt</button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Dashboard Section -->
+                <section id="dashboard-section" class="section active">
+                    <h1 style="margin-bottom: 24px;">Dashboard Übersicht</h1>
+
+                    <!-- Status Cards -->
+                    <div class="status-grid">
+                        <div class="status-card primary">
+                            <div class="status-card-label">Reifegrad</div>
+                            <div class="status-card-value" id="maturityScore">-</div>
+                            <div class="status-card-subtitle" id="maturityLevel">Noch nicht ermittelt</div>
+                        </div>
+                        <div class="status-card success">
+                            <div class="status-card-label">Aktive Projekte</div>
+                            <div class="status-card-value" id="activeProjects">0</div>
+                            <div class="status-card-subtitle">0 abgeschlossen</div>
+                        </div>
+                        <div class="status-card warning">
+                            <div class="status-card-label">Compliance-Status</div>
+                            <div class="status-card-value" id="complianceScore">0%</div>
+                            <div class="status-card-subtitle">EU AI Act Readiness</div>
+                        </div>
+                        <div class="status-card info">
+                            <div class="status-card-label">ROI Tracking</div>
+                            <div class="status-card-value" id="roiValue">-</div>
+                            <div class="status-card-subtitle">Über alle Projekte</div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Access Buttons -->
+                    <div class="card">
+                        <h3 class="card-title mb-16">Quick Actions</h3>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="navigateTo('stufe1')">📝 Assessment durchführen</button>
+                            <button class="btn btn-primary" onclick="openModal('newProjectModal')">🚀 Neues Projekt</button>
+                            <button class="btn btn-secondary" onclick="navigateTo('stufe6')">✓ Compliance-Check</button>
+                            <button class="btn btn-secondary" onclick="exportReport()">📄 Report generieren</button>
+                        </div>
+                    </div>
+
+                    <!-- Fortschritts-Timeline -->
+                    <div class="card">
+                        <h3 class="card-title mb-16">Ihr Fortschritt durch die 7 Stufen</h3>
+                        <div class="timeline">
+                            <div class="timeline-item" onclick="navigateTo('stufe1')">
+                                <div class="timeline-dot" id="timeline-1">1</div>
+                                <div class="timeline-label">Bewusstsein</div>
+                                <div class="timeline-progress">0%</div>
+                            </div>
+                            <div class="timeline-item" onclick="navigateTo('stufe2')">
+                                <div class="timeline-dot" id="timeline-2">2</div>
+                                <div class="timeline-label">Audit</div>
+                                <div class="timeline-progress">0%</div>
+                            </div>
+                            <div class="timeline-item" onclick="navigateTo('stufe3')">
+                                <div class="timeline-dot" id="timeline-3">3</div>
+                                <div class="timeline-label">Strategie</div>
+                                <div class="timeline-progress">0%</div>
+                            </div>
+                            <div class="timeline-item" onclick="navigateTo('stufe4')">
+                                <div class="timeline-dot" id="timeline-4">4</div>
+                                <div class="timeline-label">Technologie</div>
+                                <div class="timeline-progress">0%</div>
+                            </div>
+                            <div class="timeline-item" onclick="navigateTo('stufe5')">
+                                <div class="timeline-dot" id="timeline-5">5</div>
+                                <div class="timeline-label">Menschen</div>
+                                <div class="timeline-progress">0%</div>
+                            </div>
+                            <div class="timeline-item" onclick="navigateTo('stufe6')">
+                                <div class="timeline-dot" id="timeline-6">6</div>
+                                <div class="timeline-label">Governance</div>
+                                <div class="timeline-progress">0%</div>
+                            </div>
+                            <div class="timeline-item" onclick="navigateTo('stufe7')">
+                                <div class="timeline-dot" id="timeline-7">7</div>
+                                <div class="timeline-label">Evolution</div>
+                                <div class="timeline-progress">0%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Aktuelle Aufgaben -->
+                    <div class="card">
+                        <h3 class="card-title mb-16">📋 Nächste Schritte</h3>
+                        <div id="nextStepsList">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📝</div>
+                                <p>Führen Sie das Reifegrad-Assessment durch, um personalisierte Empfehlungen zu erhalten.</p>
+                                <button class="btn btn-primary mt-16" onclick="navigateTo('stufe1')">Assessment starten</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Stufe 1: Bewusstsein -->
+                <section id="stufe1-section" class="section hidden">
+                    <h1 style="margin-bottom: 24px;">🔍 Stufe 1: Bewusstsein</h1>
+
+                    <div class="tabs">
+                        <div class="tab active" onclick="switchTab('stufe1', 0)">KI-Bestandsaufnahme</div>
+                        <div class="tab" onclick="switchTab('stufe1', 1)">Dependency-Check</div>
+                        <div class="tab" onclick="switchTab('stufe1', 2)">Reifegrad-Assessment</div>
+                        <div class="tab" onclick="switchTab('stufe1', 3)">TCO-Worksheet</div>
+                    </div>
+
+                    <!-- Tab 1: KI-Bestandsaufnahme -->
+                    <div class="tab-content active" id="stufe1-tab-0">
+                        <div class="card">
+                            <h3 class="card-title mb-16">25-Fragen KI-Bestandsaufnahme</h3>
+                            <p class="mb-24" style="color: var(--gray-600);">Beantworten Sie diese Fragen, um ein vollständiges Inventar Ihrer KI-Systeme zu erstellen.</p>
+
+                            <div id="inventoryChecklist"></div>
+
+                            <div class="btn-group mt-32">
+                                <button class="btn btn-success" onclick="saveInventory()">💾 Speichern</button>
+                                <button class="btn btn-secondary" onclick="exportInventoryCSV()">📊 Als CSV exportieren</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Dependency-Check -->
+                    <div class="tab-content" id="stufe1-tab-1">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">KI-Dependency-Check</h3>
+                                <button class="btn btn-sm btn-primary" onclick="addDependency()">+ Abhängigkeit hinzufügen</button>
+                            </div>
+
+                            <div style="overflow-x: auto;">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>KI-System</th>
+                                            <th>Vendor</th>
+                                            <th>Kritikalität</th>
+                                            <th>Wechselkosten (€)</th>
+                                            <th>Lock-in-Risiko</th>
+                                            <th>Exit-Plan</th>
+                                            <th>Aktionen</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dependencyTableBody">
+                                        <tr>
+                                            <td colspan="7" class="text-center" style="padding: 32px;">
+                                                Keine Abhängigkeiten erfasst. Klicken Sie auf "+ Abhängigkeit hinzufügen".
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="mt-32" id="criticalDependencies" style="display: none;">
+                                <h4 style="margin-bottom: 16px;">⚠️ Top 3 Kritische Abhängigkeiten</h4>
+                                <div id="criticalDependenciesList"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: Reifegrad-Assessment -->
+                    <div class="tab-content" id="stufe1-tab-2">
+                        <div class="card">
+                            <h3 class="card-title mb-16">Reifegrad-Assessment</h3>
+                            <p class="mb-24" style="color: var(--gray-600);">Ermitteln Sie den aktuellen KI-Reifegrad Ihres Unternehmens.</p>
+
+                            <div id="maturityAssessment"></div>
+
+                            <div class="btn-group mt-32">
+                                <button class="btn btn-primary" onclick="startMaturityAssessment()">Assessment starten</button>
+                            </div>
+
+                            <div id="maturityResults" class="mt-32" style="display: none;">
+                                <h4 class="mb-16">Ergebnis</h4>
+                                <div class="chart-container">
+                                    <canvas id="maturityRadarChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 4: TCO-Worksheet -->
+                    <div class="tab-content" id="stufe1-tab-3">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">TCO-Worksheet (Total Cost of Ownership)</h3>
+                                <button class="btn btn-sm btn-primary" onclick="addTCOSystem()">+ System hinzufügen</button>
+                            </div>
+
+                            <div id="tcoSystemsList"></div>
+
+                            <div class="mt-32" id="tcoComparison" style="display: none;">
+                                <h4 class="mb-16">TCO-Vergleich (3 Jahre)</h4>
+                                <div class="chart-container">
+                                    <canvas id="tcoChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Stufe 2: Audit -->
+                <section id="stufe2-section" class="section hidden">
+                    <h1 style="margin-bottom: 24px;">📋 Stufe 2: Audit</h1>
+
+                    <div class="tabs">
+                        <div class="tab active" onclick="switchTab('stufe2', 0)">Daten-Inventar</div>
+                        <div class="tab" onclick="switchTab('stufe2', 1)">Datenqualität</div>
+                        <div class="tab" onclick="switchTab('stufe2', 2)">KI-Potenzial-Heatmap</div>
+                        <div class="tab" onclick="switchTab('stufe2', 3)">Risiko-Register</div>
+                    </div>
+
+                    <!-- Daten-Inventar -->
+                    <div class="tab-content active" id="stufe2-tab-0">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Daten-Inventar-Matrix</h3>
+                                <button class="btn btn-sm btn-primary" onclick="addDataSource()">+ Datenquelle hinzufügen</button>
+                            </div>
+
+                            <div style="overflow-x: auto;">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Datenquelle</th>
+                                            <th>Typ</th>
+                                            <th>Volumen</th>
+                                            <th>Aktualisierung</th>
+                                            <th>Owner</th>
+                                            <th>KI-Verfügbar</th>
+                                            <th>Aktionen</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dataInventoryBody"></tbody>
+                                </table>
+                            </div>
+
+                            <div class="btn-group mt-32">
+                                <button class="btn btn-secondary" onclick="exportDataInventoryCSV()">📊 Als CSV exportieren</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Datenqualität -->
+                    <div class="tab-content" id="stufe2-tab-1">
+                        <div class="card">
+                            <h3 class="card-title mb-16">Datenqualitäts-Bewertung (6 Dimensionen)</h3>
+                            <p class="mb-24" style="color: var(--gray-600);">Bewerten Sie jede Datenquelle in 6 Qualitätsdimensionen.</p>
+
+                            <div id="dataQualityList"></div>
+
+                            <div class="mt-32" id="dataQualityChart" style="display: none;">
+                                <h4 class="mb-16">Qualitäts-Radar</h4>
+                                <div class="chart-container">
+                                    <canvas id="qualityRadarChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KI-Potenzial-Heatmap -->
+                    <div class="tab-content" id="stufe2-tab-2">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">KI-Potenzial-Heatmap</h3>
+                                <button class="btn btn-sm btn-primary" onclick="addUseCase()">+ Use Case hinzufügen</button>
+                            </div>
+
+                            <div id="heatmapContainer" style="min-height: 500px; position: relative; border: 2px solid var(--gray-200); border-radius: 8px; margin-top: 24px;">
+                                <!-- Canvas für Heatmap -->
+                                <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: var(--gray-300);"></div>
+                                <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 1px; background: var(--gray-300);"></div>
+                                <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--gray-300);"></div>
+                                <div style="position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--gray-300);"></div>
+
+                                <!-- Quadranten-Labels -->
+                                <div style="position: absolute; top: 10px; right: 10px; background: #d1fae5; padding: 8px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">Quick Wins</div>
+                                <div style="position: absolute; top: 10px; left: 10px; background: #dbeafe; padding: 8px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">Strategisch</div>
+                                <div style="position: absolute; bottom: 10px; right: 10px; background: #fef3c7; padding: 8px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">Nice-to-Have</div>
+                                <div style="position: absolute; bottom: 10px; left: 10px; background: var(--gray-200); padding: 8px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">Später</div>
+
+                                <div id="useCaseBubbles"></div>
+                            </div>
+
+                            <div class="mt-16" style="display: flex; justify-content: space-between; color: var(--gray-600); font-size: 0.875rem;">
+                                <span>← Niedrig Impact / Hoch Impact →</span>
+                                <span>↑ Schwer / Leicht ↓</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Risiko-Register -->
+                    <div class="tab-content" id="stufe2-tab-3">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Risiko-Register</h3>
+                                <button class="btn btn-sm btn-primary" onclick="addRisk()">+ Risiko hinzufügen</button>
+                            </div>
+
+                            <div style="overflow-x: auto;">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Risiko</th>
+                                            <th>Kategorie</th>
+                                            <th>Wahrscheinlichkeit (1-5)</th>
+                                            <th>Impact (1-5)</th>
+                                            <th>Risk-Score</th>
+                                            <th>Mitigation</th>
+                                            <th>Status</th>
+                                            <th>Aktionen</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="riskRegisterBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Stufe 3: Strategie -->
+                <section id="stufe3-section" class="section hidden">
+                    <h1 style="margin-bottom: 24px;">🎯 Stufe 3: Strategie</h1>
+
+                    <div class="tabs">
+                        <div class="tab active" onclick="switchTab('stufe3', 0)">Vision-Workshop</div>
+                        <div class="tab" onclick="switchTab('stufe3', 1)">Business Cases</div>
+                        <div class="tab" onclick="switchTab('stufe3', 2)">Value-Score</div>
+                        <div class="tab" onclick="switchTab('stufe3', 3)">3-Jahres-Roadmap</div>
+                    </div>
+
+                    <!-- Vision-Workshop -->
+                    <div class="tab-content active" id="stufe3-tab-0">
+                        <div class="card">
+                            <h3 class="card-title mb-16">Vision-Workshop-Guide</h3>
+
+                            <div class="form-group">
+                                <label class="form-label">Schritt 1: Ihre Geschäftsziele</label>
+                                <textarea class="form-textarea" id="visionGoals" placeholder="Was möchten Sie in den nächsten 3 Jahren erreichen?"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Schritt 2: KI-Archetyp</label>
+                                <select class="form-select" id="visionArchetype">
+                                    <option value="">Wählen Sie Ihren Fokus</option>
+                                    <option value="efficiency">Effizienz-Fokus (Kosten senken, Prozesse optimieren)</option>
+                                    <option value="innovation">Innovations-Fokus (Neue Produkte/Services)</option>
+                                    <option value="differentiation">Differenzierungs-Fokus (Wettbewerbsvorteile)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Schritt 3: Mission-Statement</label>
+                                <textarea class="form-textarea" id="visionMission" placeholder="Beispiel: Wir nutzen KI, um unseren Kunden personalisierte Erlebnisse zu bieten und gleichzeitig unsere Effizienz um 30% zu steigern."></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Schritt 4: Top 5 Potenzial-Bereiche</label>
+                                <input type="text" class="form-input mb-8" id="potential1" placeholder="1. Bereich">
+                                <input type="text" class="form-input mb-8" id="potential2" placeholder="2. Bereich">
+                                <input type="text" class="form-input mb-8" id="potential3" placeholder="3. Bereich">
+                                <input type="text" class="form-input mb-8" id="potential4" placeholder="4. Bereich">
+                                <input type="text" class="form-input mb-8" id="potential5" placeholder="5. Bereich">
+                            </div>
+
+                            <div class="btn-group">
+                                <button class="btn btn-success" onclick="saveVision()">💾 Vision speichern</button>
+                                <button class="btn btn-secondary" onclick="exportVisionPDF()">📄 PDF exportieren</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Business Cases -->
+                    <div class="tab-content" id="stufe3-tab-1">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Business Case Canvas</h3>
+                                <button class="btn btn-sm btn-primary" onclick="createBusinessCase()">+ Neuer Business Case</button>
+                            </div>
+
+                            <div id="businessCasesList"></div>
+                        </div>
+                    </div>
+
+                    <!-- Value-Score -->
+                    <div class="tab-content" id="stufe3-tab-2">
+                        <div class="card">
+                            <h3 class="card-title mb-16">KI-Value-Score-Rechner</h3>
+                            <p class="mb-24" style="color: var(--gray-600);">Bewerten und priorisieren Sie Ihre Projekte nach ihrem Wertbeitrag.</p>
+
+                            <div id="valueScoreList"></div>
+
+                            <div class="mt-32" id="valueScoreChart" style="display: none;">
+                                <h4 class="mb-16">Projekt-Ranking</h4>
+                                <div class="chart-container">
+                                    <canvas id="valueScoreBarChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3-Jahres-Roadmap -->
+                    <div class="tab-content" id="stufe3-tab-3">
+                        <div class="card">
+                            <h3 class="card-title mb-16">3-Jahres-Roadmap Builder</h3>
+                            <p class="mb-24" style="color: var(--gray-600);">Planen Sie Ihre KI-Projekte über die nächsten 3 Jahre.</p>
+
+                            <div id="roadmapBuilder">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">🗓️</div>
+                                    <p>Erstellen Sie Business Cases, um diese in die Roadmap einzuplanen.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Weitere Stufen 4-7 werden ähnlich strukturiert -->
+                <!-- Aus Platzgründen hier verkürzt, aber im vollen Code implementiert -->
+
+                <!-- Stufe 4: Technologie -->
+                <section id="stufe4-section" class="section hidden">
+                    <h1 style="margin-bottom: 24px;">💻 Stufe 4: Technologie</h1>
+
+                    <div class="tabs">
+                        <div class="tab active" onclick="switchTab('stufe4', 0)">Build vs Buy</div>
+                        <div class="tab" onclick="switchTab('stufe4', 1)">Vendor Scorecard</div>
+                        <div class="tab" onclick="switchTab('stufe4', 2)">Red Flags</div>
+                        <div class="tab" onclick="switchTab('stufe4', 3)">Architektur</div>
+                    </div>
+
+                    <!-- Build vs Buy -->
+                    <div class="tab-content active" id="stufe4-tab-0">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Build vs Buy Decision Matrix</h3>
+                                <button class="btn btn-sm btn-primary" onclick="addBuildBuyDecision()">+ Entscheidung hinzufügen</button>
+                            </div>
+                            <p class="mb-24" style="color: var(--gray-600);">Bewerten Sie 5 Faktoren (1-5), um die optimale Entscheidung zu treffen.</p>
+
+                            <div id="buildBuyList"></div>
+                        </div>
+                    </div>
+
+                    <!-- Vendor Scorecard -->
+                    <div class="tab-content" id="stufe4-tab-1">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">30-Punkte Vendor-Scorecard</h3>
+                                <button class="btn btn-sm btn-primary" onclick="addVendorScorecard()">+ Vendor bewerten</button>
+                            </div>
+
+                            <div id="vendorScorecardList"></div>
+
+                            <div class="mt-32" id="vendorComparison" style="display: none;">
+                                <h4 class="mb-16">Vendor-Vergleich</h4>
+                                <div class="chart-container">
+                                    <canvas id="vendorComparisonChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Red Flags -->
+                    <div class="tab-content" id="stufe4-tab-2">
+                        <div class="card">
+                            <h3 class="card-title mb-16">Red Flags Checker</h3>
+                            <p class="mb-24" style="color: var(--gray-600);">Überprüfen Sie kritische Warnzeichen bei Vendor-Auswahl. Mehr als 2 Red Flags = Warnung!</p>
+
+                            <div id="redFlagsChecklist">
+                                <div class="checklist-item">
+                                    <input type="checkbox" id="rf1" onchange="checkRedFlags()">
+                                    <label for="rf1" style="flex: 1;">Keine Referenzkunden verfügbar</label>
+                                </div>
+                                <div class="checklist-item">
+                                    <input type="checkbox" id="rf2" onchange="checkRedFlags()">
+                                    <label for="rf2" style="flex: 1;">"Trust us" Rhetorik statt Transparenz</label>
+                                </div>
+                                <div class="checklist-item">
+                                    <input type="checkbox" id="rf3" onchange="checkRedFlags()">
+                                    <label for="rf3" style="flex: 1;">Unrealistische Versprechen (100% Accuracy, etc.)</label>
+                                </div>
+                                <div class="checklist-item">
+                                    <input type="checkbox" id="rf4" onchange="checkRedFlags()">
+                                    <label for="rf4" style="flex: 1;">Keine Exit-Strategie oder Daten-Export möglich</label>
+                                </div>
+                                <div class="checklist-item">
+                                    <input type="checkbox" id="rf5" onchange="checkRedFlags()">
+                                    <label for="rf5" style="flex: 1;">Vendor benötigt Zugriff auf ALLE Unternehmensdaten</label>
+                                </div>
+                                <div class="checklist-item">
+                                    <input type="checkbox" id="rf6" onchange="checkRedFlags()">
+                                    <label for="rf6" style="flex: 1;">Intransparente Preismodelle oder versteckte Kosten</label>
+                                </div>
+                                <div class="checklist-item">
+                                    <input type="checkbox" id="rf7" onchange="checkRedFlags()">
+                                    <label for="rf7" style="flex: 1;">Keine klaren SLAs oder Support-Zusagen</label>
+                                </div>
+                                <div class="checklist-item">
+                                    <input type="checkbox" id="rf8" onchange="checkRedFlags()">
+                                    <label for="rf8" style="flex: 1;">Vendor ist einziger Anbieter (Monopol)</label>
+                                </div>
+                            </div>
+
+                            <div id="redFlagWarning" class="mt-32" style="display: none;">
+                                <div class="card" style="border-left: 4px solid var(--danger); background: #fee2e2;">
+                                    <h4 style="color: var(--danger);">⚠️ WARNUNG: Zu viele Red Flags!</h4>
+                                    <p style="color: var(--gray-700);">Sie haben mehr als 2 kritische Warnzeichen identifiziert. Überdenken Sie diese Vendor-Wahl!</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Architektur -->
+                    <div class="tab-content" id="stufe4-tab-3">
+                        <div class="card">
+                            <h3 class="card-title mb-16">Architektur-Dokumentation</h3>
+
+                            <div class="form-group">
+                                <label class="form-label">Deployment-Strategie</label>
+                                <select class="form-select" id="deploymentStrategy">
+                                    <option value="">Wählen...</option>
+                                    <option value="cloud">Cloud</option>
+                                    <option value="onpremise">On-Premise</option>
+                                    <option value="hybrid">Hybrid</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Komponenten (eine pro Zeile)</label>
+                                <textarea class="form-textarea" id="architectureComponents" placeholder="z.B.&#10;- API Gateway&#10;- ML Model Service&#10;- Data Pipeline&#10;- Vector Database"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">API-Dokumentation (URL)</label>
+                                <input type="url" class="form-input" id="apiDocsUrl" placeholder="https://...">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Datenfluss-Diagramm (URL oder Beschreibung)</label>
+                                <input type="text" class="form-input" id="dataFlowDiagram" placeholder="Link zu Diagramm oder Beschreibung">
+                            </div>
+
+                            <div class="btn-group">
+                                <button class="btn btn-success" onclick="saveArchitecture()">💾 Architektur speichern</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Stufe 5: Menschen -->
+                <section id="stufe5-section" class="section hidden">
+                    <h1 style="margin-bottom: 24px;">👥 Stufe 5: Menschen</h1>
+
+                    <div class="tabs">
+                        <div class="tab active" onclick="switchTab('stufe5', 0)">Skill-Gap-Analyse</div>
+                        <div class="tab" onclick="switchTab('stufe5', 1)">Team-Builder</div>
+                        <div class="tab" onclick="switchTab('stufe5', 2)">90-Tage-Plan</div>
+                        <div class="tab" onclick="switchTab('stufe5', 3)">Stakeholder-Map</div>
+                    </div>
+
+                    <!-- Skill-Gap -->
+                    <div class="tab-content active" id="stufe5-tab-0">
+                        <div class="card">
+                            <h3 class="card-title mb-16">Skill-Gap-Analyse</h3>
+
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Skill</th>
+                                        <th>Benötigt</th>
+                                        <th>Aktuell</th>
+                                        <th>Gap</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Data Science</td>
+                                        <td><select class="form-select" id="skill-ds-needed"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></td>
+                                        <td><select class="form-select" id="skill-ds-current"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></td>
+                                        <td id="gap-ds">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>ML Engineering</td>
+                                        <td><select class="form-select" id="skill-ml-needed"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></td>
+                                        <td><select class="form-select" id="skill-ml-current"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></td>
+                                        <td id="gap-ml">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>MLOps</td>
+                                        <td><select class="form-select" id="skill-mlops-needed"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></td>
+                                        <td><select class="form-select" id="skill-mlops-current"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></td>
+                                        <td id="gap-mlops">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Prompt Engineering</td>
+                                        <td><select class="form-select" id="skill-prompt-needed"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></td>
+                                        <td><select class="form-select" id="skill-prompt-current"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></td>
+                                        <td id="gap-prompt">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>KI Governance</td>
+                                        <td><select class="form-select" id="skill-gov-needed"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></td>
+                                        <td><select class="form-select" id="skill-gov-current"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></td>
+                                        <td id="gap-gov">0</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <div class="btn-group mt-24">
+                                <button class="btn btn-success" onclick="calculateSkillGaps()">📊 Gaps berechnen</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Team-Builder -->
+                    <div class="tab-content" id="stufe5-tab-1">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Team-Builder</h3>
+                                <button class="btn btn-sm btn-primary" onclick="addTeamMember()">+ Mitglied hinzufügen</button>
+                            </div>
+
+                            <div id="teamMembersList"></div>
+                        </div>
+                    </div>
+
+                    <!-- 90-Tage-Plan -->
+                    <div class="tab-content" id="stufe5-tab-2">
+                        <div class="card">
+                            <h3 class="card-title mb-16">90-Tage Change-Plan</h3>
+                            <p class="mb-24" style="color: var(--gray-600);">Planen Sie die ersten 12 Wochen Ihrer KI-Transformation.</p>
+
+                            <div id="changePlanCalendar">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">📅</div>
+                                    <p>90-Tage-Plan-Feature in Entwicklung...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stakeholder-Map -->
+                    <div class="tab-content" id="stufe5-tab-3">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Stakeholder-Map</h3>
+                                <button class="btn btn-sm btn-primary" onclick="addStakeholder()">+ Stakeholder hinzufügen</button>
+                            </div>
+
+                            <div id="stakeholderMatrix" style="min-height: 400px; position: relative; border: 2px solid var(--gray-200); border-radius: 8px; margin-top: 24px;">
+                                <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--gray-300);"></div>
+                                <div style="position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--gray-300);"></div>
+
+                                <!-- Quadranten-Labels -->
+                                <div style="position: absolute; top: 10px; right: 10px; font-size: 0.75rem; font-weight: 600;">Manage closely</div>
+                                <div style="position: absolute; top: 10px; left: 10px; font-size: 0.75rem; font-weight: 600;">Keep satisfied</div>
+                                <div style="position: absolute; bottom: 10px; right: 10px; font-size: 0.75rem; font-weight: 600;">Keep informed</div>
+                                <div style="position: absolute; bottom: 10px; left: 10px; font-size: 0.75rem; font-weight: 600;">Monitor</div>
+
+                                <div id="stakeholderBubbles"></div>
+                            </div>
+
+                            <div class="mt-16" style="display: flex; justify-content: space-between; color: var(--gray-600); font-size: 0.875rem;">
+                                <span>← Niedrig Einfluss / Hoch Einfluss →</span>
+                                <span>↑ Niedrig Interesse / Hoch Interesse ↓</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Stufe 6: Governance -->
+                <section id="stufe6-section" class="section hidden">
+                    <h1 style="margin-bottom: 24px;">⚖️ Stufe 6: Governance</h1>
+
+                    <div class="tabs">
+                        <div class="tab active" onclick="switchTab('stufe6', 0)">EU AI Act</div>
+                        <div class="tab" onclick="switchTab('stufe6', 1)">Ethical AI</div>
+                        <div class="tab" onclick="switchTab('stufe6', 2)">Governance-Board</div>
+                        <div class="tab" onclick="switchTab('stufe6', 3)">Data Sovereignty</div>
+                    </div>
+
+                    <!-- EU AI Act -->
+                    <div class="tab-content active" id="stufe6-tab-0">
+                        <div class="card">
+                            <h3 class="card-title mb-16">EU AI Act 50-Punkte Compliance-Checkliste</h3>
+
+                            <div class="mb-24">
+                                <h4 class="mb-16">Kategorie 1: Risikoklassifizierung (10 Punkte)</h4>
+                                <div id="euaiact-cat1"></div>
+                            </div>
+
+                            <div class="mb-24">
+                                <h4 class="mb-16">Kategorie 2: Dokumentation (10 Punkte)</h4>
+                                <div id="euaiact-cat2"></div>
+                            </div>
+
+                            <div class="mb-24">
+                                <h4 class="mb-16">Kategorie 3: Transparenz (10 Punkte)</h4>
+                                <div id="euaiact-cat3"></div>
+                            </div>
+
+                            <div class="mb-24">
+                                <h4 class="mb-16">Kategorie 4: Human Oversight (10 Punkte)</h4>
+                                <div id="euaiact-cat4"></div>
+                            </div>
+
+                            <div class="mb-24">
+                                <h4 class="mb-16">Kategorie 5: Daten-Governance (5 Punkte)</h4>
+                                <div id="euaiact-cat5"></div>
+                            </div>
+
+                            <div class="mb-24">
+                                <h4 class="mb-16">Kategorie 6: Cybersecurity (5 Punkte)</h4>
+                                <div id="euaiact-cat6"></div>
+                            </div>
+
+                            <div class="card" style="background: var(--gray-50); margin-top: 32px;">
+                                <h4 class="mb-16">Compliance-Score</h4>
+                                <div style="display: flex; align-items: center; gap: 24px;">
+                                    <div class="status-card-value" id="complianceScoreDisplay">0/50</div>
+                                    <div class="progress-bar-container" style="flex: 1;">
+                                        <div class="progress-bar" id="complianceProgressBar" style="width: 0%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="btn-group mt-24">
+                                <button class="btn btn-success" onclick="saveCompliance()">💾 Speichern</button>
+                                <button class="btn btn-secondary" onclick="exportComplianceReport()">📄 Report generieren</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ethical AI -->
+                    <div class="tab-content" id="stufe6-tab-1">
+                        <div class="card">
+                            <h3 class="card-title mb-16">Ethical AI Scorecard</h3>
+                            <p class="mb-24" style="color: var(--gray-600);">Bewerten Sie Ihre KI-Systeme auf ethische Aspekte (max. 100 Punkte).</p>
+
+                            <div class="form-group">
+                                <label class="form-label">Fairness (0-25)</label>
+                                <input type="range" min="0" max="25" value="0" class="form-input" id="ethical-fairness" oninput="updateEthicalScore()">
+                                <span id="ethical-fairness-value">0</span>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Transparency (0-25)</label>
+                                <input type="range" min="0" max="25" value="0" class="form-input" id="ethical-transparency" oninput="updateEthicalScore()">
+                                <span id="ethical-transparency-value">0</span>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Accountability (0-20)</label>
+                                <input type="range" min="0" max="20" value="0" class="form-input" id="ethical-accountability" oninput="updateEthicalScore()">
+                                <span id="ethical-accountability-value">0</span>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Privacy & Security (0-20)</label>
+                                <input type="range" min="0" max="20" value="0" class="form-input" id="ethical-privacy" oninput="updateEthicalScore()">
+                                <span id="ethical-privacy-value">0</span>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Human Autonomy (0-10)</label>
+                                <input type="range" min="0" max="10" value="0" class="form-input" id="ethical-autonomy" oninput="updateEthicalScore()">
+                                <span id="ethical-autonomy-value">0</span>
+                            </div>
+
+                            <div class="card" style="background: var(--gray-50); margin-top: 32px;">
+                                <h4>Gesamt-Score: <span id="ethicalScoreTotal">0/100</span></h4>
+                            </div>
+
+                            <div class="btn-group mt-24">
+                                <button class="btn btn-success" onclick="saveEthicalScore()">💾 Speichern</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Governance-Board -->
+                    <div class="tab-content" id="stufe6-tab-2">
+                        <div class="card">
+                            <h3 class="card-title mb-16">Governance-Board-Setup</h3>
+
+                            <div class="form-group">
+                                <label class="form-label">Board-Mitglieder (Name, Rolle - eine pro Zeile)</label>
+                                <textarea class="form-textarea" id="boardMembers" placeholder="z.B.&#10;Max Mustermann, CTO&#10;Anna Schmidt, Legal&#10;Peter Meyer, Data Protection Officer"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Meeting-Frequenz</label>
+                                <select class="form-select" id="boardMeetingFreq">
+                                    <option value="weekly">Wöchentlich</option>
+                                    <option value="biweekly">Zweiwöchentlich</option>
+                                    <option value="monthly" selected>Monatlich</option>
+                                    <option value="quarterly">Vierteljährlich</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Verantwortlichkeiten</label>
+                                <div class="checklist-item">
+                                    <input type="checkbox" id="resp1">
+                                    <label for="resp1" style="flex: 1;">KI-Strategie genehmigen</label>
+                                </div>
+                                <div class="checklist-item">
+                                    <input type="checkbox" id="resp2">
+                                    <label for="resp2" style="flex: 1;">Risikobewertungen durchführen</label>
+                                </div>
+                                <div class="checklist-item">
+                                    <input type="checkbox" id="resp3">
+                                    <label for="resp3" style="flex: 1;">Compliance überwachen</label>
+                                </div>
+                                <div class="checklist-item">
+                                    <input type="checkbox" id="resp4">
+                                    <label for="resp4" style="flex: 1;">Budget-Entscheidungen treffen</label>
+                                </div>
+                            </div>
+
+                            <div class="btn-group mt-24">
+                                <button class="btn btn-success" onclick="saveGovernanceBoard()">💾 Board-Setup speichern</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Sovereignty -->
+                    <div class="tab-content" id="stufe6-tab-3">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Data Sovereignty Blueprint</h3>
+                            </div>
+
+                            <p class="mb-24" style="color: var(--gray-600);">Überprüfen Sie für jeden Vendor die Datensouveränität.</p>
+
+                            <div id="dataSovereigntyList"></div>
+
+                            <div class="btn-group mt-24">
+                                <button class="btn btn-sm btn-primary" onclick="addDataSovereigntyCheck()">+ Vendor prüfen</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Stufe 7: Evolution -->
+                <section id="stufe7-section" class="section hidden">
+                    <h1 style="margin-bottom: 24px;">📈 Stufe 7: Evolution</h1>
+
+                    <div class="tabs">
+                        <div class="tab active" onclick="switchTab('stufe7', 0)">KPI-Dashboard</div>
+                        <div class="tab" onclick="switchTab('stufe7', 1)">A/B-Tests</div>
+                        <div class="tab" onclick="switchTab('stufe7', 2)">Drift-Monitoring</div>
+                        <div class="tab" onclick="switchTab('stufe7', 3)">Learnings</div>
+                        <div class="tab" onclick="switchTab('stufe7', 4)">Skalierung</div>
+                    </div>
+
+                    <!-- KPI-Dashboard -->
+                    <div class="tab-content active" id="stufe7-tab-0">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">KPI-Dashboard</h3>
+                                <button class="btn btn-sm btn-primary" onclick="addKPI()">+ KPI hinzufügen</button>
+                            </div>
+
+                            <div id="kpiList"></div>
+
+                            <div class="mt-32" id="kpiChart" style="display: none;">
+                                <h4 class="mb-16">KPI-Trends</h4>
+                                <div class="chart-container-large">
+                                    <canvas id="kpiTrendChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- A/B-Tests -->
+                    <div class="tab-content" id="stufe7-tab-1">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">A/B-Test-Tracker</h3>
+                                <button class="btn btn-sm btn-primary" onclick="addABTest()">+ Test hinzufügen</button>
+                            </div>
+
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Hypothese</th>
+                                        <th>Start</th>
+                                        <th>Sample-Size</th>
+                                        <th>Metric</th>
+                                        <th>Control</th>
+                                        <th>Test</th>
+                                        <th>Entscheidung</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="abTestTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Drift-Monitoring -->
+                    <div class="tab-content" id="stufe7-tab-2">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Drift-Monitoring-Log</h3>
+                                <button class="btn btn-sm btn-primary" onclick="addDriftMonitor()">+ System hinzufügen</button>
+                            </div>
+
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>KI-System</th>
+                                        <th>Deployment-Accuracy</th>
+                                        <th>Aktuelle Accuracy</th>
+                                        <th>Drift</th>
+                                        <th>Letztes Retraining</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="driftMonitorTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Learnings -->
+                    <div class="tab-content" id="stufe7-tab-3">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Learnings Repository</h3>
+                                <button class="btn btn-sm btn-primary" onclick="addLearning()">+ Learning hinzufügen</button>
+                            </div>
+
+                            <div class="form-group">
+                                <input type="text" class="form-input" id="learningsSearch" placeholder="🔍 Learnings durchsuchen..." oninput="searchLearnings()">
+                            </div>
+
+                            <div id="learningsList"></div>
+                        </div>
+                    </div>
+
+                    <!-- Skalierung -->
+                    <div class="tab-content" id="stufe7-tab-4">
+                        <div class="card">
+                            <h3 class="card-title mb-16">Skalierungs-Planner</h3>
+
+                            <p class="mb-24" style="color: var(--gray-600);">Planen Sie den stufenweisen Roll-out Ihrer KI-Systeme.</p>
+
+                            <div class="form-group">
+                                <label class="form-label">Phase 1: Pilot (100 User)</label>
+                                <input type="date" class="form-input" id="scale-phase1">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Phase 2: Wave 1 (500 User)</label>
+                                <input type="date" class="form-input" id="scale-phase2">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Phase 3: Wave 2 (50%)</label>
+                                <input type="date" class="form-input" id="scale-phase3">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Phase 4: Full Roll-out (100%)</label>
+                                <input type="date" class="form-input" id="scale-phase4">
+                            </div>
+
+                            <div class="btn-group mt-24">
+                                <button class="btn btn-success" onclick="saveScalingPlan()">💾 Skalierungsplan speichern</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Einstellungen -->
+                <section id="settings-section" class="section hidden">
+                    <h1 style="margin-bottom: 24px;">⚙️ Einstellungen</h1>
+
+                    <div class="card">
+                        <h3 class="card-title mb-16">Unternehmensprofil</h3>
+
+                        <div class="form-group">
+                            <label class="form-label">Unternehmensname</label>
+                            <input type="text" class="form-input" id="companyName" placeholder="Ihre Firma GmbH">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Größe (Mitarbeiter)</label>
+                            <select class="form-select" id="companySize">
+                                <option value="1-10">1-10</option>
+                                <option value="11-50">11-50</option>
+                                <option value="51-200">51-200</option>
+                                <option value="201-500">201-500</option>
+                                <option value="500+">500+</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Branche</label>
+                            <input type="text" class="form-input" id="companyIndustry" placeholder="z.B. IT, Handel, Produktion">
+                        </div>
+
+                        <button class="btn btn-success" onclick="saveCompanyProfile()">💾 Profil speichern</button>
+                    </div>
+
+                    <div class="card mt-32">
+                        <h3 class="card-title mb-16">Daten-Management</h3>
+
+                        <div class="btn-group">
+                            <button class="btn btn-secondary" onclick="exportAllData()">📥 Alle Daten exportieren (JSON)</button>
+                            <button class="btn btn-secondary" onclick="importData()">📤 Daten importieren</button>
+                            <button class="btn btn-secondary" onclick="createBackup()">💾 Backup erstellen</button>
+                            <button class="btn btn-danger" onclick="deleteAllData()">🗑️ Alle Daten löschen</button>
+                        </div>
+                    </div>
+
+                    <div class="card mt-32">
+                        <h3 class="card-title mb-16">Präferenzen</h3>
+
+                        <div class="form-group">
+                            <label class="form-label">Theme</label>
+                            <select class="form-select" id="themeSelect" onchange="changeTheme(this.value)">
+                                <option value="light">Light Mode</option>
+                                <option value="dark">Dark Mode</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Sprache</label>
+                            <select class="form-select" id="languageSelect">
+                                <option value="de">Deutsch</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
+                                <input type="checkbox" id="notificationsEnabled" style="margin-right: 8px;">
+                                Task-Erinnerungen aktivieren
+                            </label>
+                        </div>
+
+                        <button class="btn btn-success" onclick="savePreferences()">💾 Einstellungen speichern</button>
+                    </div>
+
+                    <div class="card mt-32">
+                        <h3 class="card-title mb-16">Demo-Modus</h3>
+                        <p class="mb-16" style="color: var(--gray-600);">Laden Sie Beispiel-Daten, um die App auszuprobieren.</p>
+                        <button class="btn btn-primary" onclick="loadDemoData()">🎭 Demo-Daten laden</button>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="newProjectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="modal-close" onclick="closeModal('newProjectModal')">×</button>
+                <h2 class="modal-title">Neues Projekt erstellen</h2>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Projektname</label>
+                <input type="text" class="form-input" id="newProjectName">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Beschreibung</label>
+                <textarea class="form-textarea" id="newProjectDesc"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Budget (€)</label>
+                <input type="number" class="form-input" id="newProjectBudget">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select class="form-select" id="newProjectStatus">
+                    <option value="planning">Planung</option>
+                    <option value="active">Aktiv</option>
+                    <option value="paused">Pausiert</option>
+                    <option value="completed">Abgeschlossen</option>
+                </select>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="saveNewProject()">Projekt erstellen</button>
+                <button class="btn btn-secondary" onclick="closeModal('newProjectModal')">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ==================== DATA MODEL ====================
+        const AppData = {
+            company: {
+                name: '',
+                size: '',
+                industry: '',
+                maturityLevel: 0
+            },
+            projects: [],
+            inventory: {
+                questions: [],
+                systems: []
+            },
+            dependencies: [],
+            tco: [],
+            dataInventory: [],
+            dataQuality: [],
+            useCases: [],
+            risks: [],
+            vision: null,
+            businessCases: [],
+            valueScores: [],
+            settings: {
+                theme: 'light',
+                language: 'de',
+                notifications: true
+            }
+        };
+
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            initInventoryChecklist();
+            updateDashboard();
+        });
+
+        function loadData() {
+            const saved = localStorage.getItem('kiGovernanceData');
+            if (saved) {
+                Object.assign(AppData, JSON.parse(saved));
+                applySettings();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('kiGovernanceData', JSON.stringify(AppData));
+            showToast('Daten gespeichert!');
+        }
+
+        function applySettings() {
+            if (AppData.settings.theme === 'dark') {
+                document.body.classList.add('dark-mode');
+            }
+
+            // Apply company profile
+            if (AppData.company.name) {
+                document.getElementById('companyName').value = AppData.company.name;
+                document.getElementById('companySize').value = AppData.company.size;
+                document.getElementById('companyIndustry').value = AppData.company.industry;
+            }
+        }
+
+        // ==================== NAVIGATION ====================
+        function navigateTo(section) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+
+            // Show target section
+            const targetSection = document.getElementById(section + '-section');
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+            }
+
+            // Update nav active state
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            event.target.closest('.nav-item')?.classList.add('active');
+
+            // Update breadcrumbs
+            const breadcrumbText = {
+                'dashboard': 'Dashboard',
+                'stufe1': 'Stufe 1: Bewusstsein',
+                'stufe2': 'Stufe 2: Audit',
+                'stufe3': 'Stufe 3: Strategie',
+                'stufe4': 'Stufe 4: Technologie',
+                'stufe5': 'Stufe 5: Menschen',
+                'stufe6': 'Stufe 6: Governance',
+                'stufe7': 'Stufe 7: Evolution',
+                'settings': 'Einstellungen'
+            };
+            document.getElementById('breadcrumbs').textContent = breadcrumbText[section] || section;
+
+            // Close sidebar on mobile
+            if (window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.remove('active');
+            }
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            AppData.settings.theme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
+            saveData();
+        }
+
+        function switchTab(section, tabIndex) {
+            // Hide all tab contents for this section
+            document.querySelectorAll(`#${section}-section .tab-content`).forEach(tc => tc.classList.remove('active'));
+            document.querySelectorAll(`#${section}-section .tab`).forEach(t => t.classList.remove('active'));
+
+            // Show selected tab
+            document.getElementById(`${section}-tab-${tabIndex}`).classList.add('active');
+            document.querySelectorAll(`#${section}-section .tab`)[tabIndex].classList.add('active');
+        }
+
+        // ==================== MODALS ====================
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // ==================== TOAST ====================
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // ==================== DASHBOARD ====================
+        function updateDashboard() {
+            // Update maturity
+            if (AppData.company.maturityLevel > 0) {
+                document.getElementById('maturityScore').textContent = AppData.company.maturityLevel + '/50';
+                const level = getMaturityLevel(AppData.company.maturityLevel);
+                document.getElementById('maturityLevel').textContent = level;
+            }
+
+            // Update projects
+            const activeProjects = AppData.projects.filter(p => p.status === 'active').length;
+            const completedProjects = AppData.projects.filter(p => p.status === 'completed').length;
+            document.getElementById('activeProjects').textContent = activeProjects;
+            document.querySelector('#activeProjects').nextElementSibling.textContent = completedProjects + ' abgeschlossen';
+
+            // Update timeline
+            updateTimeline();
+        }
+
+        function getMaturityLevel(score) {
+            if (score <= 10) return 'KI-Naiv';
+            if (score <= 20) return 'KI-Bewusst';
+            if (score <= 30) return 'KI-Aktiv';
+            if (score <= 40) return 'KI-Strategisch';
+            return 'KI-Souverän';
+        }
+
+        function updateTimeline() {
+            // Simple progress calculation based on completed tasks
+            for (let i = 1; i <= 7; i++) {
+                const dot = document.getElementById(`timeline-${i}`);
+                // This would be calculated based on actual completion of tasks in each stage
+                const progress = 0; // Placeholder
+                if (progress >= 100) {
+                    dot.classList.add('completed');
+                } else if (progress > 0) {
+                    dot.classList.add('active');
+                }
+            }
+        }
+
+        // ==================== STUFE 1: INVENTORY ====================
+        function initInventoryChecklist() {
+            const questions = [
+                "Welche KI-Systeme nutzen wir aktuell?",
+                "Wer sind die Vendor dieser Systeme?",
+                "Welche Daten nutzen diese Systeme?",
+                "Wo werden diese Daten gespeichert?",
+                "Wer hat Zugriff auf diese Systeme?",
+                "Welche Abteilungen nutzen KI?",
+                "Gibt es Shadow-IT KI-Tools?",
+                "Welche monatlichen Kosten entstehen?",
+                "Gibt es versteckte Kosten?",
+                "Sind Verträge dokumentiert?",
+                "Wann laufen Verträge aus?",
+                "Gibt es Kündigungsfristen?",
+                "Sind SLAs definiert?",
+                "Wie wird Support geleistet?",
+                "Gibt es Backup-Pläne?",
+                "Sind Datenschutz-Aspekte geklärt?",
+                "Gibt es DSGVO-Compliance?",
+                "Sind Sicherheitsaudits durchgeführt?",
+                "Gibt es Notfall-Pläne?",
+                "Sind Mitarbeiter geschult?",
+                "Gibt es Nutzungsrichtlinien?",
+                "Werden Metriken getrackt?",
+                "Gibt es ROI-Berechnungen?",
+                "Sind Risiken dokumentiert?",
+                "Gibt es einen Verantwortlichen für KI?"
+            ];
+
+            const container = document.getElementById('inventoryChecklist');
+            container.innerHTML = questions.map((q, i) => `
+                <div class="checklist-item">
+                    <input type="checkbox" id="inv-${i}" onchange="saveData()">
+                    <label for="inv-${i}" style="flex: 1;">${q}</label>
+                    <input type="text" class="form-input" placeholder="Notiz..." style="width: 200px; padding: 6px;">
+                </div>
+            `).join('');
+        }
+
+        function saveInventory() {
+            showToast('KI-Bestandsaufnahme gespeichert!');
+            saveData();
+        }
+
+        function exportInventoryCSV() {
+            showToast('CSV-Export wird vorbereitet...');
+            // CSV export logic would go here
+        }
+
+        // ==================== STUFE 1: DEPENDENCIES ====================
+        function addDependency() {
+            const dep = {
+                id: Date.now(),
+                system: 'Neues System',
+                vendor: '',
+                criticality: 'medium',
+                switchCost: 0,
+                lockInRisk: 3,
+                exitPlan: false
+            };
+            AppData.dependencies.push(dep);
+            renderDependencies();
+            saveData();
+        }
+
+        function renderDependencies() {
+            const tbody = document.getElementById('dependencyTableBody');
+            if (AppData.dependencies.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding: 32px;">Keine Abhängigkeiten erfasst.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = AppData.dependencies.map(dep => `
+                <tr>
+                    <td><input type="text" class="form-input" value="${dep.system}" onchange="updateDependency(${dep.id}, 'system', this.value)"></td>
+                    <td><input type="text" class="form-input" value="${dep.vendor}" onchange="updateDependency(${dep.id}, 'vendor', this.value)"></td>
+                    <td>
+                        <select class="form-select" onchange="updateDependency(${dep.id}, 'criticality', this.value)">
+                            <option value="low" ${dep.criticality === 'low' ? 'selected' : ''}>Niedrig</option>
+                            <option value="medium" ${dep.criticality === 'medium' ? 'selected' : ''}>Mittel</option>
+                            <option value="high" ${dep.criticality === 'high' ? 'selected' : ''}>Hoch</option>
+                        </select>
+                    </td>
+                    <td><input type="number" class="form-input" value="${dep.switchCost}" onchange="updateDependency(${dep.id}, 'switchCost', this.value)"></td>
+                    <td>
+                        <div class="stars">
+                            ${[1,2,3,4,5].map(star => `<span class="star ${star <= dep.lockInRisk ? 'filled' : ''}" onclick="updateDependency(${dep.id}, 'lockInRisk', ${star})">★</span>`).join('')}
+                        </div>
+                    </td>
+                    <td>
+                        <select class="form-select" onchange="updateDependency(${dep.id}, 'exitPlan', this.value === 'true')">
+                            <option value="true" ${dep.exitPlan ? 'selected' : ''}>Ja</option>
+                            <option value="false" ${!dep.exitPlan ? 'selected' : ''}>Nein</option>
+                        </select>
+                    </td>
+                    <td><button class="btn btn-sm btn-danger" onclick="deleteDependency(${dep.id})">🗑️</button></td>
+                </tr>
+            `).join('');
+
+            // Show critical dependencies
+            const critical = AppData.dependencies
+                .filter(d => d.criticality === 'high' || d.lockInRisk >= 4)
+                .slice(0, 3);
+
+            if (critical.length > 0) {
+                document.getElementById('criticalDependencies').style.display = 'block';
+                document.getElementById('criticalDependenciesList').innerHTML = critical.map(d => `
+                    <div class="card" style="padding: 16px; margin-bottom: 12px; border-left: 4px solid var(--danger);">
+                        <strong>${d.system}</strong> (${d.vendor})<br>
+                        <small>Lock-in-Risiko: ${d.lockInRisk}/5 | Exit-Plan: ${d.exitPlan ? 'Ja' : 'Nein'}</small>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function updateDependency(id, field, value) {
+            const dep = AppData.dependencies.find(d => d.id === id);
+            if (dep) {
+                dep[field] = value;
+                if (field === 'lockInRisk') renderDependencies();
+                saveData();
+            }
+        }
+
+        function deleteDependency(id) {
+            if (confirm('Abhängigkeit löschen?')) {
+                AppData.dependencies = AppData.dependencies.filter(d => d.id !== id);
+                renderDependencies();
+                saveData();
+            }
+        }
+
+        // ==================== PROJECTS ====================
+        function saveNewProject() {
+            const project = {
+                id: Date.now(),
+                name: document.getElementById('newProjectName').value,
+                description: document.getElementById('newProjectDesc').value,
+                budget: document.getElementById('newProjectBudget').value,
+                status: document.getElementById('newProjectStatus').value,
+                created: new Date().toISOString()
+            };
+
+            AppData.projects.push(project);
+            saveData();
+            closeModal('newProjectModal');
+            updateDashboard();
+            showToast('Projekt erstellt!');
+        }
+
+        // ==================== SETTINGS ====================
+        function saveCompanyProfile() {
+            AppData.company.name = document.getElementById('companyName').value;
+            AppData.company.size = document.getElementById('companySize').value;
+            AppData.company.industry = document.getElementById('companyIndustry').value;
+            saveData();
+            showToast('Unternehmensprofil gespeichert!');
+        }
+
+        function savePreferences() {
+            AppData.settings.language = document.getElementById('languageSelect').value;
+            AppData.settings.notifications = document.getElementById('notificationsEnabled').checked;
+            saveData();
+            showToast('Einstellungen gespeichert!');
+        }
+
+        function changeTheme(theme) {
+            if (theme === 'dark') {
+                document.body.classList.add('dark-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+            }
+            AppData.settings.theme = theme;
+            saveData();
+        }
+
+        function exportAllData() {
+            const dataStr = JSON.stringify(AppData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'ki-governance-data-' + new Date().toISOString().split('T')[0] + '.json';
+            link.click();
+            showToast('Daten exportiert!');
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        Object.assign(AppData, data);
+                        saveData();
+                        location.reload();
+                    } catch (err) {
+                        alert('Fehler beim Import: ' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        function createBackup() {
+            exportAllData();
+        }
+
+        function deleteAllData() {
+            if (confirm('Alle Daten wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden!')) {
+                if (confirm('Sind Sie sicher? Letzte Warnung!')) {
+                    localStorage.clear();
+                    location.reload();
+                }
+            }
+        }
+
+        function loadDemoData() {
+            if (confirm('Demo-Daten laden? Dies überschreibt bestehende Daten.')) {
+                // Load demo data
+                AppData.company = {
+                    name: 'Muster KMU GmbH',
+                    size: '51-200',
+                    industry: 'IT-Dienstleistungen',
+                    maturityLevel: 22
+                };
+
+                AppData.projects = [
+                    {
+                        id: 1,
+                        name: 'Chatbot Kundenservice',
+                        description: 'KI-gestützter Support-Chatbot',
+                        budget: 50000,
+                        status: 'active',
+                        created: new Date().toISOString()
+                    },
+                    {
+                        id: 2,
+                        name: 'Predictive Maintenance',
+                        description: 'Vorhersage von Wartungsbedarf',
+                        budget: 120000,
+                        status: 'planning',
+                        created: new Date().toISOString()
+                    }
+                ];
+
+                AppData.dependencies = [
+                    {
+                        id: 1,
+                        system: 'OpenAI GPT-4',
+                        vendor: 'OpenAI',
+                        criticality: 'high',
+                        switchCost: 25000,
+                        lockInRisk: 4,
+                        exitPlan: false
+                    }
+                ];
+
+                saveData();
+                location.reload();
+            }
+        }
+
+        function exportReport() {
+            showToast('Report wird generiert...');
+            window.print();
+        }
+
+        // ==================== ADDITIONAL FUNCTIONS ====================
+
+        // Stufe 1
+        function startMaturityAssessment() {
+            showToast('Assessment wird vorbereitet...');
+            // Navigate to existing assessment in index.html
+            window.open('index.html', '_blank');
+        }
+
+        function addTCOSystem() {
+            const systemName = prompt('Name des KI-Systems:');
+            if (!systemName) return;
+
+            if (!AppData.tco) AppData.tco = [];
+            AppData.tco.push({
+                id: Date.now(),
+                name: systemName,
+                license: 0,
+                implementation: 0,
+                training: 0,
+                operation: 0,
+                hidden: 0
+            });
+            renderTCOSystems();
+            saveData();
+        }
+
+        function renderTCOSystems() {
+            const container = document.getElementById('tcoSystemsList');
+            if (!AppData.tco || AppData.tco.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>Keine TCO-Analysen vorhanden.</p></div>';
+                return;
+            }
+
+            container.innerHTML = AppData.tco.map(sys => {
+                const total = parseInt(sys.license || 0) + parseInt(sys.implementation || 0) + parseInt(sys.training || 0) + parseInt(sys.operation || 0) + parseInt(sys.hidden || 0);
+                return `
+                    <div class="card mb-16">
+                        <h4>${sys.name}</h4>
+                        <div class="form-group">
+                            <label>Lizenzkosten (3 Jahre): €<input type="number" value="${sys.license}" onchange="updateTCO(${sys.id}, 'license', this.value)" style="width: 150px; margin-left: 8px;"></label>
+                        </div>
+                        <div class="form-group">
+                            <label>Implementierung: €<input type="number" value="${sys.implementation}" onchange="updateTCO(${sys.id}, 'implementation', this.value)" style="width: 150px; margin-left: 8px;"></label>
+                        </div>
+                        <div class="form-group">
+                            <label>Training: €<input type="number" value="${sys.training}" onchange="updateTCO(${sys.id}, 'training', this.value)" style="width: 150px; margin-left: 8px;"></label>
+                        </div>
+                        <div class="form-group">
+                            <label>Laufender Betrieb: €<input type="number" value="${sys.operation}" onchange="updateTCO(${sys.id}, 'operation', this.value)" style="width: 150px; margin-left: 8px;"></label>
+                        </div>
+                        <div class="form-group">
+                            <label>Versteckte Kosten: €<input type="number" value="${sys.hidden}" onchange="updateTCO(${sys.id}, 'hidden', this.value)" style="width: 150px; margin-left: 8px;"></label>
+                        </div>
+                        <div style="background: var(--gray-50); padding: 12px; border-radius: 6px; margin-top: 12px;">
+                            <strong>Gesamt-TCO (3 Jahre): €${total.toLocaleString()}</strong>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            if (AppData.tco.length > 0) {
+                document.getElementById('tcoComparison').style.display = 'block';
+            }
+        }
+
+        function updateTCO(id, field, value) {
+            const sys = AppData.tco.find(s => s.id === id);
+            if (sys) {
+                sys[field] = parseInt(value) || 0;
+                renderTCOSystems();
+                saveData();
+            }
+        }
+
+        // Stufe 2
+        function addDataSource() {
+            if (!AppData.dataInventory) AppData.dataInventory = [];
+            AppData.dataInventory.push({
+                id: Date.now(),
+                name: 'Neue Datenquelle',
+                type: 'transactional',
+                volume: '',
+                frequency: 'daily',
+                owner: '',
+                aiReady: false
+            });
+            renderDataInventory();
+            saveData();
+        }
+
+        function renderDataInventory() {
+            const tbody = document.getElementById('dataInventoryBody');
+            if (!AppData.dataInventory || AppData.dataInventory.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding: 32px;">Keine Datenquellen erfasst.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = AppData.dataInventory.map(ds => `
+                <tr>
+                    <td><input type="text" class="form-input" value="${ds.name}" onchange="updateDataSource(${ds.id}, 'name', this.value)"></td>
+                    <td>
+                        <select class="form-select" onchange="updateDataSource(${ds.id}, 'type', this.value)">
+                            <option value="transactional" ${ds.type === 'transactional' ? 'selected' : ''}>Transaktional</option>
+                            <option value="master" ${ds.type === 'master' ? 'selected' : ''}>Master</option>
+                            <option value="analytics" ${ds.type === 'analytics' ? 'selected' : ''}>Analytics</option>
+                        </select>
+                    </td>
+                    <td><input type="text" class="form-input" value="${ds.volume}" onchange="updateDataSource(${ds.id}, 'volume', this.value)"></td>
+                    <td><input type="text" class="form-input" value="${ds.frequency}" onchange="updateDataSource(${ds.id}, 'frequency', this.value)"></td>
+                    <td><input type="text" class="form-input" value="${ds.owner}" onchange="updateDataSource(${ds.id}, 'owner', this.value)"></td>
+                    <td><span class="badge ${ds.aiReady ? 'badge-success' : 'badge-gray'}">${ds.aiReady ? 'Ja' : 'Nein'}</span></td>
+                    <td><button class="btn btn-sm btn-danger" onclick="deleteDataSource(${ds.id})">🗑️</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function updateDataSource(id, field, value) {
+            const ds = AppData.dataInventory.find(d => d.id === id);
+            if (ds) {
+                ds[field] = value;
+                saveData();
+            }
+        }
+
+        function deleteDataSource(id) {
+            if (confirm('Datenquelle löschen?')) {
+                AppData.dataInventory = AppData.dataInventory.filter(d => d.id !== id);
+                renderDataInventory();
+                saveData();
+            }
+        }
+
+        function exportDataInventoryCSV() {
+            showToast('CSV-Export wird vorbereitet...');
+            const csv = 'Datenquelle,Typ,Volumen,Aktualisierung,Owner,KI-Verfügbar\n' +
+                AppData.dataInventory.map(ds => `${ds.name},${ds.type},${ds.volume},${ds.frequency},${ds.owner},${ds.aiReady ? 'Ja' : 'Nein'}`).join('\n');
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'daten-inventar.csv';
+            link.click();
+        }
+
+        function addUseCase() {
+            showToast('Use-Case hinzugefügt - Feature in Entwicklung...');
+        }
+
+        function addRisk() {
+            if (!AppData.risks) AppData.risks = [];
+            AppData.risks.push({
+                id: Date.now(),
+                description: 'Neues Risiko',
+                category: 'technical',
+                probability: 3,
+                impact: 3,
+                mitigation: '',
+                status: 'open'
+            });
+            renderRisks();
+            saveData();
+        }
+
+        function renderRisks() {
+            const tbody = document.getElementById('riskRegisterBody');
+            if (!AppData.risks || AppData.risks.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="padding: 32px;">Keine Risiken erfasst.</td></tr>';
+                return;
+            }
+
+            AppData.risks.sort((a, b) => (b.probability * b.impact) - (a.probability * a.impact));
+
+            tbody.innerHTML = AppData.risks.map(risk => {
+                const score = risk.probability * risk.impact;
+                const scoreBadge = score >= 15 ? 'badge-danger' : score >= 9 ? 'badge-warning' : 'badge-success';
+                return `
+                    <tr>
+                        <td><input type="text" class="form-input" value="${risk.description}" onchange="updateRisk(${risk.id}, 'description', this.value)"></td>
+                        <td>
+                            <select class="form-select" onchange="updateRisk(${risk.id}, 'category', this.value)">
+                                <option value="technical" ${risk.category === 'technical' ? 'selected' : ''}>Technisch</option>
+                                <option value="legal" ${risk.category === 'legal' ? 'selected' : ''}>Rechtlich</option>
+                                <option value="ethical" ${risk.category === 'ethical' ? 'selected' : ''}>Ethisch</option>
+                                <option value="business" ${risk.category === 'business' ? 'selected' : ''}>Geschäftlich</option>
+                            </select>
+                        </td>
+                        <td><input type="number" min="1" max="5" class="form-input" value="${risk.probability}" onchange="updateRisk(${risk.id}, 'probability', this.value)"></td>
+                        <td><input type="number" min="1" max="5" class="form-input" value="${risk.impact}" onchange="updateRisk(${risk.id}, 'impact', this.value)"></td>
+                        <td><span class="badge ${scoreBadge}">${score}</span></td>
+                        <td><input type="text" class="form-input" value="${risk.mitigation}" onchange="updateRisk(${risk.id}, 'mitigation', this.value)"></td>
+                        <td>
+                            <select class="form-select" onchange="updateRisk(${risk.id}, 'status', this.value)">
+                                <option value="open" ${risk.status === 'open' ? 'selected' : ''}>Offen</option>
+                                <option value="working" ${risk.status === 'working' ? 'selected' : ''}>In Arbeit</option>
+                                <option value="mitigated" ${risk.status === 'mitigated' ? 'selected' : ''}>Mitigiert</option>
+                            </select>
+                        </td>
+                        <td><button class="btn btn-sm btn-danger" onclick="deleteRisk(${risk.id})">🗑️</button></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateRisk(id, field, value) {
+            const risk = AppData.risks.find(r => r.id === id);
+            if (risk) {
+                risk[field] = field === 'probability' || field === 'impact' ? parseInt(value) : value;
+                renderRisks();
+                saveData();
+            }
+        }
+
+        function deleteRisk(id) {
+            if (confirm('Risiko löschen?')) {
+                AppData.risks = AppData.risks.filter(r => r.id !== id);
+                renderRisks();
+                saveData();
+            }
+        }
+
+        // Stufe 3
+        function saveVision() {
+            AppData.vision = {
+                goals: document.getElementById('visionGoals').value,
+                archetype: document.getElementById('visionArchetype').value,
+                mission: document.getElementById('visionMission').value,
+                potentials: [
+                    document.getElementById('potential1').value,
+                    document.getElementById('potential2').value,
+                    document.getElementById('potential3').value,
+                    document.getElementById('potential4').value,
+                    document.getElementById('potential5').value
+                ]
+            };
+            saveData();
+            showToast('Vision gespeichert!');
+        }
+
+        function exportVisionPDF() { window.print(); }
+        function createBusinessCase() { showToast('Business-Case-Feature in Entwicklung...'); }
+
+        // Stufe 4
+        function addBuildBuyDecision() { showToast('Build-vs-Buy-Feature in Entwicklung...'); }
+        function addVendorScorecard() { showToast('Vendor-Scorecard-Feature in Entwicklung...'); }
+
+        function checkRedFlags() {
+            const redFlags = [
+                document.getElementById('rf1').checked,
+                document.getElementById('rf2').checked,
+                document.getElementById('rf3').checked,
+                document.getElementById('rf4').checked,
+                document.getElementById('rf5').checked,
+                document.getElementById('rf6').checked,
+                document.getElementById('rf7').checked,
+                document.getElementById('rf8').checked
+            ].filter(Boolean).length;
+
+            const warning = document.getElementById('redFlagWarning');
+            warning.style.display = redFlags > 2 ? 'block' : 'none';
+        }
+
+        function saveArchitecture() {
+            AppData.architecture = {
+                deployment: document.getElementById('deploymentStrategy').value,
+                components: document.getElementById('architectureComponents').value,
+                apiDocs: document.getElementById('apiDocsUrl').value,
+                dataFlow: document.getElementById('dataFlowDiagram').value
+            };
+            saveData();
+            showToast('Architektur gespeichert!');
+        }
+
+        // Stufe 5
+        function calculateSkillGaps() {
+            const skills = ['ds', 'ml', 'mlops', 'prompt', 'gov'];
+            skills.forEach(skill => {
+                const needed = parseInt(document.getElementById(`skill-${skill}-needed`).value);
+                const current = parseInt(document.getElementById(`skill-${skill}-current`).value);
+                const gap = needed - current;
+                document.getElementById(`gap-${skill}`).textContent = gap;
+                document.getElementById(`gap-${skill}`).style.color = gap > 0 ? 'var(--danger)' : 'var(--success)';
+            });
+            showToast('Skill-Gaps berechnet!');
+        }
+
+        function addTeamMember() { showToast('Team-Member-Feature in Entwicklung...'); }
+        function addStakeholder() { showToast('Stakeholder-Feature in Entwicklung...'); }
+
+        // Stufe 6
+        function initEUAIActChecklist() {
+            const categories = {
+                cat1: ['Risikoklasse bestimmt', 'Dokumentiert', 'Verantwortlicher benannt'],
+                cat2: ['Technische Dokumentation', 'Use-Case-Beschreibung', 'Datenquellen dokumentiert'],
+                cat3: ['Nutzer informiert über KI-Einsatz', 'Transparenz gewährleistet', 'Nachvollziehbarkeit gegeben'],
+                cat4: ['Human-in-the-Loop implementiert', 'Override-Möglichkeit vorhanden', 'Training durchgeführt'],
+                cat5: ['Daten-Governance etabliert', 'Bias-Checks durchgeführt'],
+                cat6: ['Security-Audit durchgeführt', 'Incident-Response-Plan vorhanden']
+            };
+
+            Object.keys(categories).forEach(cat => {
+                const container = document.getElementById(`euaiact-${cat}`);
+                container.innerHTML = categories[cat].map((item, i) => `
+                    <div class="checklist-item">
+                        <input type="checkbox" id="${cat}-${i}" onchange="updateComplianceScore()">
+                        <label for="${cat}-${i}" style="flex: 1;">${item}</label>
+                    </div>
+                `).join('');
+            });
+        }
+
+        function updateComplianceScore() {
+            let score = 0;
+            for (let cat = 1; cat <= 6; cat++) {
+                const checkboxes = document.querySelectorAll(`#euaiact-cat${cat} input[type="checkbox"]`);
+                checkboxes.forEach(cb => { if (cb.checked) score++; });
+            }
+
+            document.getElementById('complianceScoreDisplay').textContent = `${score}/50`;
+            document.getElementById('complianceProgressBar').style.width = (score / 50 * 100) + '%';
+            document.getElementById('complianceScore').textContent = Math.round(score / 50 * 100) + '%';
+        }
+
+        function saveCompliance() {
+            saveData();
+            showToast('Compliance-Daten gespeichert!');
+        }
+
+        function exportComplianceReport() {
+            window.print();
+        }
+
+        function updateEthicalScore() {
+            const fairness = parseInt(document.getElementById('ethical-fairness').value);
+            const transparency = parseInt(document.getElementById('ethical-transparency').value);
+            const accountability = parseInt(document.getElementById('ethical-accountability').value);
+            const privacy = parseInt(document.getElementById('ethical-privacy').value);
+            const autonomy = parseInt(document.getElementById('ethical-autonomy').value);
+
+            document.getElementById('ethical-fairness-value').textContent = fairness;
+            document.getElementById('ethical-transparency-value').textContent = transparency;
+            document.getElementById('ethical-accountability-value').textContent = accountability;
+            document.getElementById('ethical-privacy-value').textContent = privacy;
+            document.getElementById('ethical-autonomy-value').textContent = autonomy;
+
+            const total = fairness + transparency + accountability + privacy + autonomy;
+            document.getElementById('ethicalScoreTotal').textContent = `${total}/100`;
+        }
+
+        function saveEthicalScore() {
+            AppData.ethicalScore = {
+                fairness: parseInt(document.getElementById('ethical-fairness').value),
+                transparency: parseInt(document.getElementById('ethical-transparency').value),
+                accountability: parseInt(document.getElementById('ethical-accountability').value),
+                privacy: parseInt(document.getElementById('ethical-privacy').value),
+                autonomy: parseInt(document.getElementById('ethical-autonomy').value)
+            };
+            saveData();
+            showToast('Ethical AI Score gespeichert!');
+        }
+
+        function saveGovernanceBoard() {
+            AppData.governanceBoard = {
+                members: document.getElementById('boardMembers').value,
+                frequency: document.getElementById('boardMeetingFreq').value
+            };
+            saveData();
+            showToast('Governance-Board gespeichert!');
+        }
+
+        function addDataSovereigntyCheck() { showToast('Data-Sovereignty-Feature in Entwicklung...'); }
+
+        // Stufe 7
+        function addKPI() { showToast('KPI-Feature in Entwicklung...'); }
+        function addABTest() { showToast('A/B-Test-Feature in Entwicklung...'); }
+        function addDriftMonitor() { showToast('Drift-Monitoring-Feature in Entwicklung...'); }
+        function addLearning() { showToast('Learnings-Feature in Entwicklung...'); }
+        function searchLearnings() { }
+        function saveScalingPlan() {
+            AppData.scalingPlan = {
+                phase1: document.getElementById('scale-phase1').value,
+                phase2: document.getElementById('scale-phase2').value,
+                phase3: document.getElementById('scale-phase3').value,
+                phase4: document.getElementById('scale-phase4').value
+            };
+            saveData();
+            showToast('Skalierungsplan gespeichert!');
+        }
+
+        // Initialize on load
+        if (document.getElementById('euaiact-cat1')) {
+            initEUAIActChecklist();
+        }
+    </script>
+</body>
+</html>
